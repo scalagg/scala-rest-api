@@ -24,7 +24,21 @@ public class GrantService {
         return grantRepository.findById(id).orElse(null);
     }
 
+    public List<Grant> getGrants(String target) {
+        return grantRepository.findAllByTarget(target);
+    }
+
     public List<Grant> getAllActiveGrants(String target) {
-        return grantRepository.findAllActiveGrantsByTarget(target, System.currentTimeMillis());
+        return grantRepository.findAllByTarget(target)
+                .stream()
+                .filter(grant -> grant.getRemovedAt() == -1)
+                .toList();
+    }
+
+    public List<Grant> getAllActiveGrantsByRankId(String rankId) {
+        return grantRepository.findAllByRankId(rankId)
+                .stream()
+                .filter(grant -> grant.getRemovedAt() == -1)
+                .toList();
     }
 }

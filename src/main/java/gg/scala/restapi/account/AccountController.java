@@ -10,6 +10,9 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Objects;
+import java.util.Optional;
+
 @RestController
 @RequestMapping("/forum/account")
 public class AccountController {
@@ -31,7 +34,6 @@ public class AccountController {
             return ResponseEntity.badRequest().build();
         }
 
-        System.out.println("Provided UUID: " + uuid);
         profileRepository.findAll().forEach(profile -> {
             System.out.println(profile.getUniqueId());
         });
@@ -90,9 +92,18 @@ public class AccountController {
     }
 
     @GetMapping("/login/{username}")
-    public ResponseEntity<Account> login(@PathVariable String username) {
+    public ResponseEntity<Account> login(@PathVariable String username, @PathVariable(required = false) String password) {
         if (username.contains("@")) {
-            return ResponseEntity.ok(accountService.getByEmail(username).orElse(null));
+            Optional<Account> account = accountService.getByEmail(username);
+            if (account.isEmpty()) {
+                return ResponseEntity.notFound().build();
+            }
+
+            if (password != null && !Objects.equals(account.get().getPassword(), password)) {
+                return ResponseEntity.badRequest().build();
+            }
+
+            return ResponseEntity.ok(account.get());
         }
 
         // TODO: handle the username, do uuid lookups and sush

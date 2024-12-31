@@ -21,9 +21,9 @@ public class ForumThread {
     private String title;
     private String body;
     private String forum;
-    private UUID author;
+    private String author;
     private long createdAt;
-    private UUID lastEditedBy;
+    private String lastEditedBy;
     private long lastEditedAt;
     private long lastReplyAt;
     private boolean pinned;

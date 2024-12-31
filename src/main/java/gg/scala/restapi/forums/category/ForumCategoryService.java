@@ -29,6 +29,7 @@ public class ForumCategoryService {
         if (category == null) {
             return null;
         }
+
         category.setName(forumCategory.getName());
         category.setWeight(forumCategory.getWeight());
         return forumCategoryRepository.save(category);

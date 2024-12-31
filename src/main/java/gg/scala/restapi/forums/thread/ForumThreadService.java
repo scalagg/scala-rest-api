@@ -1,6 +1,9 @@
 package gg.scala.restapi.forums.thread;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 public class ForumThreadService {
@@ -10,7 +13,7 @@ public class ForumThreadService {
         this.forumThreadRepository = forumThreadRepository;
     }
 
-    public ForumThread createThread(ForumThread forumThread) {
+    public ForumThread save(ForumThread forumThread) {
         return forumThreadRepository.save(forumThread);
     }
 
@@ -20,5 +23,13 @@ public class ForumThreadService {
 
     public void deleteThread(String id) {
         forumThreadRepository.deleteById(id);
+    }
+
+    public List<ForumThread> getThreads(String forumId, Pageable pageable) {
+        return forumThreadRepository.findAllByForumIgnoreCase(forumId, pageable);
+    }
+
+    public List<ForumThread> getThreadsByAuthor(String author) {
+        return forumThreadRepository.findAllByAuthor(author);
     }
 }

@@ -2,17 +2,28 @@ package gg.scala.restapi.profile;
 
 import gg.scala.restapi.account.Account;
 import gg.scala.restapi.account.AccountService;
+import gg.scala.restapi.forums.forums.ForumThreadResponse;
+import gg.scala.restapi.forums.thread.ForumThreadService;
+import gg.scala.restapi.profile.comments.Comment;
+import gg.scala.restapi.profile.comments.CommentResponse;
+import gg.scala.restapi.profile.comments.CommentService;
 import gg.scala.restapi.profile.grant.Grant;
 import gg.scala.restapi.profile.grant.GrantRepository;
 import gg.scala.restapi.profile.grant.GrantService;
+import gg.scala.restapi.profile.punishment.Punishment;
+import gg.scala.restapi.profile.punishment.PunishmentService;
 import gg.scala.restapi.rank.Rank;
 import gg.scala.restapi.rank.RankService;
+import gg.scala.restapi.util.ForumThreadResponseUtil;
+import gg.scala.restapi.util.UUIDCache;
 import org.bson.Document;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/profile")
@@ -21,12 +32,20 @@ public class ProfileController {
     private final GrantService grantService;
     private final RankService rankService;
     private final AccountService accountService;
+    private final PunishmentService punishmentService;
+    private final CommentService commentService;
+    private final ForumThreadService forumThreadService;
+    private final ForumThreadResponseUtil forumThreadResponseUtil;
 
-    public ProfileController(ProfileService profileService, GrantService grantService, RankService rankService, AccountService accountService) {
+    public ProfileController(ProfileService profileService, GrantService grantService, RankService rankService, AccountService accountService, PunishmentService punishmentService, CommentService commentService, ForumThreadService forumThreadService, ForumThreadResponseUtil forumThreadResponseUtil) {
         this.profileService = profileService;
         this.grantService = grantService;
         this.rankService = rankService;
         this.accountService = accountService;
+        this.punishmentService = punishmentService;
+        this.commentService = commentService;
+        this.forumThreadService = forumThreadService;
+        this.forumThreadResponseUtil = forumThreadResponseUtil;
     }
 
     @GetMapping("/{uuid}")
@@ -37,25 +56,70 @@ public class ProfileController {
         }
 
         List<Grant> activeGrants = null;
+        Punishment activeBan = null;
+        Punishment activeMute = null;
         Rank rank = null;
         Document webSettings = null;
         List<String> effectivePermissions = null;
+        List<CommentResponse> comments = null;
+        List<ForumThreadResponse> threads = null;
 
         if (web) {
             activeGrants = grantService.getAllActiveGrants(uuid);
             rank = profileService.getActiveRank(activeGrants, uuid);
 
+            List<Punishment> activePunishments = punishmentService.getActivePunishments(uuid);
+
+            if (!activePunishments.isEmpty()) {
+                for (Punishment punishment : activePunishments) {
+                    if (punishment.getCategory().contains("BAN")) {
+                        activeBan = punishment;
+                    } else if (punishment.getCategory().contains("MUTE")) {
+                        activeMute = punishment;
+                    }
+                }
+            }
+
             Optional<Account> account = accountService.getById(uuid);
             if (account.isPresent()) {
                 webSettings = account.get().getSettings();
             }
+
+            Rank finalRank = rank;
+            comments = commentService.getComments(uuid).stream().map(
+                    comment -> new CommentResponse(
+                            comment,
+                            UUIDCache.getName(UUID.fromString(comment.getAuthor())),
+                            finalRank.getColor()
+                    )
+            ).toList();
+
+            threads = forumThreadService.getThreadsByAuthor(uuid).stream().map(forumThreadResponseUtil::transform).toList();
         }
 
         if (perms) {
             // TODO: this
-            effectivePermissions = List.of();
+            if (activeGrants != null) {
+                effectivePermissions = new ArrayList<>();
+                List<String> checkedRanks = new ArrayList<>();
+                for (Grant grant : activeGrants) {
+                    if (checkedRanks.contains(grant.getRankId())) {
+                        continue;
+                    }
+
+                    Rank grantedRank = rankService.getById(grant.getRankId()).get();
+                    effectivePermissions.addAll(grantedRank.getPermissions());
+
+                    // TODO: Temp solution we should make something recursive for all the kids
+                    checkedRanks.add(grant.getRankId());
+                }
+
+                effectivePermissions.addAll(profile.get().getSpecificPermissions());
+            } else {
+                effectivePermissions = new ArrayList<>(profile.get().getSpecificPermissions());
+            }
         }
 
-        return ResponseEntity.ok(new ProfileResponse(profile.get(), activeGrants, rank, webSettings, effectivePermissions));
+        return ResponseEntity.ok(new ProfileResponse(profile.get(), activeGrants, activeBan, activeMute, rank, webSettings, effectivePermissions, comments, threads));
     }
 }

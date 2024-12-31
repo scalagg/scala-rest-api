@@ -1,5 +1,7 @@
 package gg.scala.restapi.forums.category;
 
+import gg.scala.restapi.forums.forums.Forum;
+import gg.scala.restapi.forums.forums.ForumService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -9,18 +11,24 @@ import java.util.List;
 @RequestMapping("/forum/category")
 public class ForumCategoryController {
     private final ForumCategoryService forumCategoryService;
+    private final ForumService forumService;
 
-    public ForumCategoryController(ForumCategoryService forumCategoryService) {
+    public ForumCategoryController(ForumCategoryService forumCategoryService, ForumService forumService) {
         this.forumCategoryService = forumCategoryService;
+        this.forumService = forumService;
     }
 
     @GetMapping
-    public List<ForumCategory> getCategories() {
-        return forumCategoryService.getCategories();
+    public List<ForumCategoryResponse> getCategories() {
+        return forumCategoryService.getCategories().stream().map(category -> {
+            List<Forum> forums = forumService.getForumsByCategory(category.getId());
+            return new ForumCategoryResponse(category, forums);
+        }).toList();
     }
 
     @PostMapping
-    public ResponseEntity<ForumCategory> createCategory(ForumCategory forumCategory) {
+    public ResponseEntity<ForumCategory> createCategory(@RequestBody ForumCategory forumCategory) {
+
         if (forumCategoryService.getCategory(forumCategory.getId()) != null) {
             return ResponseEntity.badRequest().build();
         }
@@ -29,7 +37,7 @@ public class ForumCategoryController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ForumCategory> updateCategory(@PathVariable String id, ForumCategory forumCategory) {
+    public ResponseEntity<ForumCategory> updateCategory(@PathVariable String id, @RequestBody ForumCategory forumCategory) {
         ForumCategory category = forumCategoryService.getCategory(id);
         if (category == null) {
             return ResponseEntity.notFound().build();
