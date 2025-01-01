@@ -29,5 +29,4 @@ public class ForumThread {
     private boolean pinned;
     private boolean locked;
     private String parentThreadId;
-    private List<ForumThread> replies = new ArrayList<>();
 }

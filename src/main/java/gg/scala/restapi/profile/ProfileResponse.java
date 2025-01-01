@@ -19,7 +19,7 @@ import java.util.List;
 public class ProfileResponse extends Profile {
     private final @Nullable List<Grant> activeGrants;
     private final @Nullable Punishment activeBan;
-    private final @Nullable Punishment activeMute;
+    private final @Nullable Punishment activeMute; 
     private final @Nullable Rank rank;
     private final @Nullable Document webSettings;
     private final @Nullable List<String> effectivePermissions;
