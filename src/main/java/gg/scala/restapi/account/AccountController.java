@@ -34,23 +34,24 @@ public class AccountController {
             return ResponseEntity.badRequest().build();
         }
 
-        profileRepository.findAll().forEach(profile -> {
-            System.out.println(profile.getUniqueId());
-        });
+
         if (profileService.getById(uuid).isEmpty()) {
             System.out.println("Profile not found");
             return ResponseEntity.notFound().build();
         }
 
         if (accountService.getById(uuid).isPresent()) {
+            System.out.println("Account already exists");
             return ResponseEntity.badRequest().build();
         }
 
         if (accountService.getByEmail(registrationRequest.email()).isPresent()) {
+            System.out.println("Email already exists");
             return ResponseEntity.badRequest().build();
         }
 
         if (accountService.getByToken(registrationRequest.token()).isPresent()) {
+            System.out.println("Token already exists");
             return ResponseEntity.badRequest().build();
         }
 

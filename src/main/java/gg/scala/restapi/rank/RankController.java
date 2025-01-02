@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -25,11 +26,16 @@ public class RankController {
     public ResponseEntity<List<StaffRank>> getStaffList() {
         List<StaffRank> ranks = new ArrayList<>();
 
-        rankService.getAll().stream().filter(rank -> rank.getPermissions().contains("scstaff.staff-member")).forEach(rank -> {
+        List<String> processed = new ArrayList<>();
+        rankService.getAll().stream().filter(rank -> rank.getPermissions().contains("scstaff.staff-member"))
+                .sorted(Comparator.comparingInt(Rank::getWeight).reversed()).forEach(rank -> {
             List<StaffRank.StaffRankMember> members = new ArrayList<>();
 
             grantService.getAllActiveGrantsByRankId(rank.getUuid()).forEach(grant -> {
+                if (processed.contains(grant.getTarget())) return;
+
                 members.add(new StaffRank.StaffRankMember(UUIDCache.getName(UUID.fromString(grant.getTarget())), grant.getTarget()));
+                processed.add(grant.getTarget());
             });
 
             ranks.add(new StaffRank(rank.getUuid(), rank.getName(), rank.getWeight(), rank.getColor(), members));
