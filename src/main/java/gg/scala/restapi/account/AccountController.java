@@ -2,6 +2,7 @@ package gg.scala.restapi.account;
 
 import gg.scala.restapi.profile.ProfileRepository;
 import gg.scala.restapi.profile.ProfileService;
+import gg.scala.restapi.util.UUIDCache;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import org.bson.Document;
@@ -108,8 +109,17 @@ public class AccountController {
         }
 
         // TODO: handle the username, do uuid lookups and sush
+        Optional<Account> account  = accountService.getById(UUIDCache.getUuid(username).toString());
+        if (account.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        if (password != null && !Objects.equals(account.get().getPassword(), password)) {
+            return ResponseEntity.badRequest().build();
+        }
+
         //return ResponseEntity.ok(accountService.getById(UUID.randomUUID()).orElse(null));
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(account.get());
     }
 
     @GetMapping("/token/{token}")
