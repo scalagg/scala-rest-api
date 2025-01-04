@@ -63,6 +63,7 @@ public class ProfileController {
         List<String> effectivePermissions = null;
         List<CommentResponse> comments = null;
         List<ForumThreadResponse> threads = null;
+        List<String> badges = null;
 
         if (web) {
             activeGrants = grantService.getAllActiveGrants(uuid);
@@ -83,6 +84,7 @@ public class ProfileController {
             Optional<Account> account = accountService.getById(uuid);
             if (account.isPresent()) {
                 webSettings = account.get().getSettings();
+                badges = account.get().getBadges();
             }
 
             Rank finalRank = rank;
@@ -95,6 +97,7 @@ public class ProfileController {
             ).toList();
 
             threads = forumThreadService.getThreadsByAuthor(uuid).stream().map(forumThreadResponseUtil::transform).toList();
+
         }
 
         if (perms) {
@@ -120,6 +123,6 @@ public class ProfileController {
             }
         }
 
-        return ResponseEntity.ok(new ProfileResponse(profile.get(), activeGrants, activeBan, activeMute, rank, webSettings, effectivePermissions, comments, threads));
+        return ResponseEntity.ok(new ProfileResponse(profile.get(), activeGrants, activeBan, activeMute, rank, webSettings, effectivePermissions, comments, threads, badges));
     }
 }

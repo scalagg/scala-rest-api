@@ -35,4 +35,8 @@ public class TicketService {
     public List<Ticket> getAllApplicationTickets() {
         return ticketRepository.findAllByCategoryContainingIgnoreCase("application");
     }
+
+    public List<Ticket> getApplicationTickets(String author) {
+        return ticketRepository.findAllByAuthorAndCategoryContainingIgnoreCase(author, "application");
+    }
 }

@@ -9,7 +9,10 @@ import org.springframework.data.mongodb.core.mapping.Document;
 @Data
 @AllArgsConstructor
 public class AnticheatLog {
+
     @Id
+    private String id;
+
     private String uuid;
     private String name;
     private String checkdata;

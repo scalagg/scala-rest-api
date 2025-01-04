@@ -9,4 +9,5 @@ import java.util.List;
 public interface TicketRepository extends MongoRepository<Ticket, String> {
     List<Ticket> findAllByAuthor(String author);
     List<Ticket> findAllByCategoryContainingIgnoreCase(String category);
+    List<Ticket> findAllByAuthorAndCategoryContainingIgnoreCase(String author, String application);
 }

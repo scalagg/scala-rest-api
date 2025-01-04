@@ -47,6 +47,11 @@ public class TicketController {
         return ResponseEntity.ok(ticketService.getAllApplicationTickets().stream().map(this::map).toList());
     }
 
+    @GetMapping("/player/{id}/applications")
+    public ResponseEntity<List<TicketResponse>> getApplicationTicketsForPlayer(@PathVariable String id) {
+        return ResponseEntity.ok(ticketService.getApplicationTickets(id).stream().map(this::map).toList());
+    }
+
     @PostMapping
     public ResponseEntity<TicketResponse> createTicket(@RequestBody Ticket ticket) {
         if (ticketService.getById(ticket.getId()) != null) {

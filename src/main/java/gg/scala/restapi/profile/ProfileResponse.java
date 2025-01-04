@@ -25,8 +25,9 @@ public class ProfileResponse extends Profile {
     private final @Nullable List<String> effectivePermissions;
     private final @Nullable List<CommentResponse> comments;
     private final @Nullable List<ForumThreadResponse> threads;
+    private final @Nullable List<String> badges;
 
-    public ProfileResponse(Profile profile, List<Grant> activeGrants, @Nullable Punishment activeBan, @Nullable Punishment activeMute, Rank rank, Document webSettings, @Nullable List<String> effectivePermissions, @Nullable List<CommentResponse> comments, @Nullable List<ForumThreadResponse> threads) {
+    public ProfileResponse(Profile profile, List<Grant> activeGrants, @Nullable Punishment activeBan, @Nullable Punishment activeMute, Rank rank, Document webSettings, @Nullable List<String> effectivePermissions, @Nullable List<CommentResponse> comments, @Nullable List<ForumThreadResponse> threads, @Nullable List<String> badges) {
         super(profile.getUniqueId(), profile.getIgnoring(), profile.getIpAddress(), profile.getMetadata(), profile.getName(), profile.getPastIpAddresses(), profile.getSpecificPermissions(), profile.getTimestamp());
         this.activeGrants = activeGrants;
         this.activeBan = activeBan;
@@ -36,5 +37,6 @@ public class ProfileResponse extends Profile {
         this.effectivePermissions = effectivePermissions;
         this.comments = comments;
         this.threads = threads;
+        this.badges = badges;
     }
 }

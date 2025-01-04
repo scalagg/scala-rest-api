@@ -15,7 +15,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Optional;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/forum/account")
@@ -30,6 +32,9 @@ public class AccountController {
 
     @Value("classpath:email-register.html")
     private Resource emailRegister;
+
+    @Value("classpath:email-reset.html")
+    private Resource emailReset;
 
     public AccountController(AccountService accountService, ProfileService profileService, JavaMailSender javaMailSender, PasswordEncoder passwordEncoder) {
         this.accountService = accountService;
@@ -68,7 +73,7 @@ public class AccountController {
                 uuid,
                 registrationRequest.email(),
                  null,
-                 registrationRequest.token(), new Document());
+                 registrationRequest.token(), new Document(), new ArrayList<>());
         accountService.save(account);
 
         // TODO; send email
@@ -101,6 +106,7 @@ public class AccountController {
         }
 
         account.setPassword(passwordEncoder.encode(registrationRequest.password()));
+        account.setToken(null);
         accountService.save(account);
 
         System.out.println(account.getPassword());
@@ -110,10 +116,8 @@ public class AccountController {
 
     @GetMapping("/login/{username}")
     public ResponseEntity<Account> login(@PathVariable String username, @RequestParam(required = false) String password) {
-        System.out.println("Username: " + username);
         if (username.contains("@")) {
             Optional<Account> account = accountService.getByEmail(username);
-            System.out.println("Account: " + account.isPresent());
             if (account.isEmpty()) {
                 return ResponseEntity.notFound().build();
             }
@@ -155,6 +159,78 @@ public class AccountController {
         }
 
         account.get().setPassword(passwordEncoder.encode(changePasswordRequest.password()));
+        accountService.save(account.get());
+
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/sendResetPassword")
+    public ResponseEntity<Void> sendResetPassword(@RequestBody ResetPasswordRequest resetPasswordRequest) throws MessagingException, IOException {
+        Optional<Account> account = accountService.getByEmail(resetPasswordRequest.email());
+        if (account.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        account.get().setToken(UUID.randomUUID().toString().substring(0, 8));
+        accountService.save(account.get());
+
+        MimeMessage message = javaMailSender.createMimeMessage();
+        MimeMessageHelper helper = new MimeMessageHelper(message);
+        helper.setFrom("no-reply@scala.gg");
+        helper.setTo(resetPasswordRequest.email());
+        helper.setSubject("Password Reset");
+
+        helper.setText(
+                new String(emailReset.getInputStream().readAllBytes())
+                        .replace("{{siteName}}", serverType.getName())
+                        .replace("{{serverName}}", serverType.getName())
+                        .replace("{{websiteUrl}}", serverType.getUrl())
+                        .replace("{{resetPasswordUrl}}", serverType.getUrl() + "/reset-password?token=" + account.get().getToken()), true);
+
+        javaMailSender.send(message);
+
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/resetPassword/{token}")
+    public ResponseEntity<Void> resetPassword(@PathVariable String token, @RequestBody ConfirmPasswordResetRequest confirmPasswordResetRequest) {
+        Optional<Account> account = accountService.getByToken(token);
+        if (account.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        account.get().setPassword(passwordEncoder.encode(confirmPasswordResetRequest.password()));
+        account.get().setToken(null);
+        accountService.save(account.get());
+
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/badge")
+    public ResponseEntity<Void> addBadge(@RequestBody BadgeGivenRequest addBadgeRequest) {
+        Optional<Account> account = accountService.getById(addBadgeRequest.uuid());
+        if (account.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        if (account.get().getBadges() == null) {
+            account.get().setBadges(new ArrayList<>());
+        }
+
+        account.get().getBadges().add(addBadgeRequest.badgeId());
+        accountService.save(account.get());
+
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/badge/remove")
+    public ResponseEntity<Void> removeBadge(@RequestBody BadgeGivenRequest removeBadgeRequest) {
+        Optional<Account> account = accountService.getById(removeBadgeRequest.uuid());
+        if (account.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        account.get().getBadges().remove(removeBadgeRequest.badgeId());
         accountService.save(account.get());
 
         return ResponseEntity.ok().build();
