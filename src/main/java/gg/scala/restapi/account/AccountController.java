@@ -1,18 +1,20 @@
 package gg.scala.restapi.account;
 
-import gg.scala.restapi.profile.ProfileRepository;
 import gg.scala.restapi.profile.ProfileService;
+import gg.scala.restapi.server.ServerType;
 import gg.scala.restapi.util.UUIDCache;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import org.bson.Document;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Objects;
+import java.io.IOException;
 import java.util.Optional;
 
 @RestController
@@ -23,6 +25,12 @@ public class AccountController {
     private final JavaMailSender javaMailSender;
     private final PasswordEncoder passwordEncoder;
 
+    @Value("${server.type}")
+    private ServerType serverType;
+
+    @Value("classpath:email-register.html")
+    private Resource emailRegister;
+
     public AccountController(AccountService accountService, ProfileService profileService, JavaMailSender javaMailSender, PasswordEncoder passwordEncoder) {
         this.accountService = accountService;
         this.profileService = profileService;
@@ -31,7 +39,7 @@ public class AccountController {
     }
 
     @PostMapping("/sendRegistration/{uuid}")
-    public ResponseEntity<Void> sendRegistration(@RequestBody InitialRegistrationRequest registrationRequest, @PathVariable String uuid) throws MessagingException {
+    public ResponseEntity<Void> sendRegistration(@RequestBody InitialRegistrationRequest registrationRequest, @PathVariable String uuid) throws MessagingException, IOException {
         if (registrationRequest.email() == null || registrationRequest.token() == null) {
             return ResponseEntity.badRequest().build();
         }
@@ -68,11 +76,16 @@ public class AccountController {
         MimeMessageHelper helper = new MimeMessageHelper(message);
         helper.setFrom("no-reply@scala.gg");
         helper.setTo(registrationRequest.email());
-        helper.setSubject("Welcome to Solora");
-        helper.setText("Welcome to Solora! Please click the following link to verify your account: http://localhost:8080/register?token=" + registrationRequest.token());
+        helper.setSubject("Welcome to %s".formatted(serverType.getName()));
+
+        helper.setText(
+                new String(emailRegister.getInputStream().readAllBytes())
+                        .replace("{{siteName}}", serverType.getName())
+                        .replace("{{serverName}}", serverType.getName())
+                        .replace("{{websiteUrl}}", serverType.getUrl())
+                        .replace("{{confirmationUrl}}", serverType.getUrl() + "/register?token=" + registrationRequest.token()), true);
 
         javaMailSender.send(message);
-
         return ResponseEntity.ok().build();
     }
 
