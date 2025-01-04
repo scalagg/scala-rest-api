@@ -9,6 +9,7 @@ import org.bson.Document;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Objects;
@@ -20,13 +21,13 @@ public class AccountController {
     private final AccountService accountService;
     private final ProfileService profileService;
     private final JavaMailSender javaMailSender;
-    private final ProfileRepository profileRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public AccountController(AccountService accountService, ProfileService profileService, JavaMailSender javaMailSender, ProfileRepository profileRepository) {
+    public AccountController(AccountService accountService, ProfileService profileService, JavaMailSender javaMailSender, PasswordEncoder passwordEncoder) {
         this.accountService = accountService;
         this.profileService = profileService;
         this.javaMailSender = javaMailSender;
-        this.profileRepository = profileRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @PostMapping("/sendRegistration/{uuid}")
@@ -34,7 +35,6 @@ public class AccountController {
         if (registrationRequest.email() == null || registrationRequest.token() == null) {
             return ResponseEntity.badRequest().build();
         }
-
 
         if (profileService.getById(uuid).isEmpty()) {
             System.out.println("Profile not found");
@@ -48,7 +48,7 @@ public class AccountController {
 
         if (accountService.getByEmail(registrationRequest.email()).isPresent()) {
             System.out.println("Email already exists");
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.status(401).build();
         }
 
         if (accountService.getByToken(registrationRequest.token()).isPresent()) {
@@ -66,7 +66,7 @@ public class AccountController {
         // TODO; send email
         MimeMessage message = javaMailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message);
-        helper.setFrom("no-reply@mincats.eu");
+        helper.setFrom("no-reply@scala.gg");
         helper.setTo(registrationRequest.email());
         helper.setSubject("Welcome to Solora");
         helper.setText("Welcome to Solora! Please click the following link to verify your account: http://localhost:8080/register?token=" + registrationRequest.token());
@@ -87,43 +87,63 @@ public class AccountController {
             return ResponseEntity.badRequest().build();
         }
 
-        account.setPassword(registrationRequest.password());
+        account.setPassword(passwordEncoder.encode(registrationRequest.password()));
         accountService.save(account);
+
+        System.out.println(account.getPassword());
 
         return ResponseEntity.ok().build();
     }
 
     @GetMapping("/login/{username}")
-    public ResponseEntity<Account> login(@PathVariable String username, @PathVariable(required = false) String password) {
+    public ResponseEntity<Account> login(@PathVariable String username, @RequestParam(required = false) String password) {
+        System.out.println("Username: " + username);
         if (username.contains("@")) {
             Optional<Account> account = accountService.getByEmail(username);
+            System.out.println("Account: " + account.isPresent());
             if (account.isEmpty()) {
                 return ResponseEntity.notFound().build();
             }
 
-            if (password != null && !Objects.equals(account.get().getPassword(), password)) {
+            if (password != null && !passwordEncoder.matches(password, account.get().getPassword())) {
                 return ResponseEntity.badRequest().build();
             }
 
             return ResponseEntity.ok(account.get());
         }
 
-        // TODO: handle the username, do uuid lookups and sush
         Optional<Account> account  = accountService.getById(UUIDCache.getUuid(username).toString());
         if (account.isEmpty()) {
+            System.out.println("Account not found for " + username);
             return ResponseEntity.notFound().build();
         }
 
-        if (password != null && !Objects.equals(account.get().getPassword(), password)) {
+        if (password != null && !passwordEncoder.matches(password, account.get().getPassword())) {
             return ResponseEntity.badRequest().build();
         }
 
-        //return ResponseEntity.ok(accountService.getById(UUID.randomUUID()).orElse(null));
         return ResponseEntity.ok(account.get());
     }
 
     @GetMapping("/token/{token}")
     public ResponseEntity<Account> getByToken(@PathVariable String token) {
         return ResponseEntity.ok(accountService.getByToken(token).orElse(null));
+    }
+
+    @PutMapping("/password/{uuid}")
+    public ResponseEntity<Void> changePassword(@PathVariable String uuid, @RequestBody ChangePasswordRequest changePasswordRequest) {
+        Optional<Account> account = accountService.getById(uuid);
+        if (account.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        if (!passwordEncoder.matches(changePasswordRequest.currentPassword(), account.get().getPassword())) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        account.get().setPassword(passwordEncoder.encode(changePasswordRequest.password()));
+        accountService.save(account.get());
+
+        return ResponseEntity.ok().build();
     }
 }

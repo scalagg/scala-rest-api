@@ -8,5 +8,5 @@ import java.util.Optional;
 @Repository
 public interface AccountRepository extends MongoRepository<Account, String> {
     Optional<Account> findByToken(String token);
-    Optional<Account> findByEmail(String email);
+    Optional<Account> findByEmailIgnoreCase(String email);
 }

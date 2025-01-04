@@ -17,7 +17,7 @@ public class AccountService {
     }
 
     public Optional<Account> getByEmail(String email) {
-        return accountRepository.findByEmail(email);
+        return accountRepository.findByEmailIgnoreCase(email);
     }
 
     public Optional<Account> getById(String id) {
