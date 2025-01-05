@@ -109,8 +109,6 @@ public class AccountController {
         account.setToken(null);
         accountService.save(account);
 
-        System.out.println(account.getPassword());
-
         return ResponseEntity.ok().build();
     }
 

@@ -1,5 +1,6 @@
 package gg.scala.restapi.profile;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import gg.scala.restapi.account.Account;
 import gg.scala.restapi.account.AccountService;
 import gg.scala.restapi.forums.forums.ForumThreadResponse;
@@ -39,8 +40,9 @@ public class ProfileController {
     private final ForumThreadService forumThreadService;
     private final ForumThreadResponseUtil forumThreadResponseUtil;
     private final FriendService friendService;
+    private final KFriendsRepository kFriendsRepository;
 
-    public ProfileController(ProfileService profileService, GrantService grantService, RankService rankService, AccountService accountService, PunishmentService punishmentService, CommentService commentService, ForumThreadService forumThreadService, ForumThreadResponseUtil forumThreadResponseUtil, FriendService friendService) {
+    public ProfileController(ProfileService profileService, GrantService grantService, RankService rankService, AccountService accountService, PunishmentService punishmentService, CommentService commentService, ForumThreadService forumThreadService, ForumThreadResponseUtil forumThreadResponseUtil, FriendService friendService, KFriendsRepository kFriendsRepository) {
         this.profileService = profileService;
         this.grantService = grantService;
         this.rankService = rankService;
@@ -50,6 +52,7 @@ public class ProfileController {
         this.forumThreadService = forumThreadService;
         this.forumThreadResponseUtil = forumThreadResponseUtil;
         this.friendService = friendService;
+        this.kFriendsRepository = kFriendsRepository;
     }
 
     @GetMapping("/{uuid}")
@@ -63,7 +66,7 @@ public class ProfileController {
         Punishment activeBan = null;
         Punishment activeMute = null;
         Rank rank = null;
-        Document webSettings = null;
+        Document webSettings;
         List<String> effectivePermissions = null;
         List<CommentResponse> comments = null;
         List<ForumThreadResponse> threads = null;
@@ -89,7 +92,15 @@ public class ProfileController {
             Optional<Account> account = accountService.getById(uuid);
             if (account.isPresent()) {
                 webSettings = account.get().getSettings();
+                kFriendsRepository.findById(uuid).ifPresent(kFriendsPlayer -> {
+                    for (String key : kFriendsPlayer.getSocialMedia().keySet()) {
+                        webSettings.put(key, kFriendsPlayer.getSocialMedia().get(key));
+                    }
+                });
+
                 badges = account.get().getBadges();
+            } else {
+                webSettings = null;
             }
 
             Rank finalRank = rank;
@@ -107,6 +118,8 @@ public class ProfileController {
 
             threads = forumThreadService.getThreadsByAuthor(uuid).stream().map(forumThreadResponseUtil::transform).toList();
 
+        } else {
+            webSettings = null;
         }
 
         if (perms) {
@@ -133,5 +146,76 @@ public class ProfileController {
         }
 
         return ResponseEntity.ok(new ProfileResponse(profile.get(), activeGrants, activeBan, activeMute, rank, webSettings, effectivePermissions, comments, threads, badges, friends));
+    }
+
+    @PutMapping("/settings/{uuid}")
+    public ResponseEntity<Account> updateSettings(@PathVariable String uuid, @RequestBody JsonNode settings) {
+        Optional<KFriendsPlayer> player = kFriendsRepository.findById(uuid);
+        if (player.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Document socialMedia = player.get().getSocialMedia();
+        if (settings.has("YouTube")) {
+            socialMedia.put("YouTube", settings.get("YouTube").asText());
+        }
+
+        if (settings.has("Twitter")) {
+            socialMedia.put("Twitter", settings.get("Twitter").asText());
+        }
+
+        if (settings.has("Twitch")) {
+            socialMedia.put("Twitch", settings.get("Twitch").asText());
+        }
+
+        if (settings.has("Telegram")) {
+            socialMedia.put("Telegram", settings.get("Telegram").asText());
+        }
+
+        if (settings.has("Discord")) {
+            socialMedia.put("Discord", settings.get("Discord").asText());
+        }
+
+        if (settings.has("GitHub")) {
+            socialMedia.put("GitHub", settings.get("GitHub").asText());
+        }
+
+        kFriendsRepository.save(player.get());
+
+        Account account = accountService.getById(uuid).get();
+        account.setSettings(socialMedia);
+
+        return ResponseEntity.ok(account);
+    }
+
+    @PutMapping("/updatePrivacySettings/{uuid}")
+    public ResponseEntity<Account> updatePrivacySettings(@PathVariable String uuid, @RequestBody JsonNode settings) {
+        Optional<Account> account = accountService.getById(uuid);
+        if (account.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Document privacySettings = account.get().getSettings();
+        if (settings.has("COMMENT_STATUS")) {
+            privacySettings.put("COMMENT_STATUS", settings.get("COMMENT_STATUS").asText());
+        }
+
+        if (settings.has("ONLINE_STATUS")) {
+            privacySettings.put("ONLINE_STATUS", settings.get("ONLINE_STATUS").asText());
+        }
+
+        if (settings.has("STAFF_PAGE_STATUS")) {
+            privacySettings.put("STAFF_PAGE_STATUS", settings.get("STAFF_PAGE_STATUS").asText());
+        }
+
+        account.get().setSettings(privacySettings);
+        accountService.save(account.get());
+
+        Optional<KFriendsPlayer> player = kFriendsRepository.findById(uuid);
+        player.ifPresent(kFriendsPlayer -> {
+            privacySettings.putAll(kFriendsPlayer.getSocialMedia());
+        });
+
+        return ResponseEntity.ok(account.get());
     }
 }
