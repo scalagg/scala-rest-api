@@ -10,6 +10,10 @@ public enum ServerType {
     SOLARA(
             "Solara",
             "https://solara.gg"
+    ),
+    POTPVP(
+            "PotPvP",
+            "https://potpvp.com"
     );
 
     private final String name;
