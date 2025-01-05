@@ -7,6 +7,8 @@ import gg.scala.restapi.forums.thread.ForumThreadService;
 import gg.scala.restapi.profile.comments.Comment;
 import gg.scala.restapi.profile.comments.CommentResponse;
 import gg.scala.restapi.profile.comments.CommentService;
+import gg.scala.restapi.profile.friend.FriendResponse;
+import gg.scala.restapi.profile.friend.FriendService;
 import gg.scala.restapi.profile.grant.Grant;
 import gg.scala.restapi.profile.grant.GrantRepository;
 import gg.scala.restapi.profile.grant.GrantService;
@@ -36,8 +38,9 @@ public class ProfileController {
     private final CommentService commentService;
     private final ForumThreadService forumThreadService;
     private final ForumThreadResponseUtil forumThreadResponseUtil;
+    private final FriendService friendService;
 
-    public ProfileController(ProfileService profileService, GrantService grantService, RankService rankService, AccountService accountService, PunishmentService punishmentService, CommentService commentService, ForumThreadService forumThreadService, ForumThreadResponseUtil forumThreadResponseUtil) {
+    public ProfileController(ProfileService profileService, GrantService grantService, RankService rankService, AccountService accountService, PunishmentService punishmentService, CommentService commentService, ForumThreadService forumThreadService, ForumThreadResponseUtil forumThreadResponseUtil, FriendService friendService) {
         this.profileService = profileService;
         this.grantService = grantService;
         this.rankService = rankService;
@@ -46,6 +49,7 @@ public class ProfileController {
         this.commentService = commentService;
         this.forumThreadService = forumThreadService;
         this.forumThreadResponseUtil = forumThreadResponseUtil;
+        this.friendService = friendService;
     }
 
     @GetMapping("/{uuid}")
@@ -64,6 +68,7 @@ public class ProfileController {
         List<CommentResponse> comments = null;
         List<ForumThreadResponse> threads = null;
         List<String> badges = null;
+        List<FriendResponse> friends = new ArrayList<>();
 
         if (web) {
             activeGrants = grantService.getAllActiveGrants(uuid);
@@ -96,6 +101,10 @@ public class ProfileController {
                     )
             ).toList();
 
+            friends = friendService.findAllForPlayer(uuid).stream().map(friend ->
+                        new FriendResponse(friend.getPlayer1(), friend.getPlayer2(), UUIDCache.getName(UUID.fromString(friend.getPlayer1())), UUIDCache.getName(UUID.fromString(friend.getPlayer2())), friend.getStartedOn())
+                    ).toList();
+
             threads = forumThreadService.getThreadsByAuthor(uuid).stream().map(forumThreadResponseUtil::transform).toList();
 
         }
@@ -123,6 +132,6 @@ public class ProfileController {
             }
         }
 
-        return ResponseEntity.ok(new ProfileResponse(profile.get(), activeGrants, activeBan, activeMute, rank, webSettings, effectivePermissions, comments, threads, badges));
+        return ResponseEntity.ok(new ProfileResponse(profile.get(), activeGrants, activeBan, activeMute, rank, webSettings, effectivePermissions, comments, threads, badges, friends));
     }
 }
