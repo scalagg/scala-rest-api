@@ -64,6 +64,8 @@ public class ForumController {
             return ResponseEntity.notFound().build();
         }
 
+        forum.setCategory(forum1.getCategory());
+
         return ResponseEntity.ok(forumService.updateForum(id, forum));
     }
 
