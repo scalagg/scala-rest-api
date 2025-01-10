@@ -57,8 +57,8 @@ public class ProfileController {
 
     @GetMapping("/{uuid}")
     public ResponseEntity<ProfileResponse> getProfile(@PathVariable String uuid, @RequestParam(name = "webResolved", defaultValue = "false") boolean web, @RequestParam(name = "includePermissions", defaultValue = "false") boolean perms) {
-        Optional<Profile> profile = profileService.getById(uuid);
-        if (profile.isEmpty()) {
+        Optional<Profile> profileOpt = profileService.getById(uuid);
+        if (profileOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
 
@@ -113,8 +113,8 @@ public class ProfileController {
             ).toList();
 
             friends = friendService.findAllForPlayer(uuid).stream().map(friend ->
-                        new FriendResponse(friend.getPlayer1(), friend.getPlayer2(), UUIDCache.getName(UUID.fromString(friend.getPlayer1())), UUIDCache.getName(UUID.fromString(friend.getPlayer2())), friend.getStartedOn())
-                    ).toList();
+                    new FriendResponse(friend.getPlayer1(), friend.getPlayer2(), UUIDCache.getName(UUID.fromString(friend.getPlayer1())), UUIDCache.getName(UUID.fromString(friend.getPlayer2())), friend.getStartedOn())
+            ).toList();
 
             threads = forumThreadService.getThreadsByAuthor(uuid).stream().map(forumThreadResponseUtil::transform).toList();
 
@@ -139,13 +139,19 @@ public class ProfileController {
                     checkedRanks.add(grant.getRankId());
                 }
 
-                effectivePermissions.addAll(profile.get().getSpecificPermissions());
+                effectivePermissions.addAll(profileOpt.get().getSpecificPermissions());
             } else {
-                effectivePermissions = new ArrayList<>(profile.get().getSpecificPermissions());
+                effectivePermissions = new ArrayList<>(profileOpt.get().getSpecificPermissions());
             }
         }
+        Profile profile = profileOpt.get();
 
-        return ResponseEntity.ok(new ProfileResponse(profile.get(), activeGrants, activeBan, activeMute, rank, webSettings, effectivePermissions, comments, threads, badges, friends));
+        if(!profile.getName().equalsIgnoreCase(UUIDCache.getName(UUID.fromString(profile.getUniqueId()))))
+            profile.setName(UUIDCache.getName(UUID.fromString(profile.getUniqueId())));
+
+
+        return ResponseEntity.ok(new ProfileResponse(profileOpt.get(),
+                activeGrants, activeBan, activeMute, rank, webSettings, effectivePermissions, comments, threads, badges, friends));
     }
 
     @PutMapping("/settings/{uuid}")
