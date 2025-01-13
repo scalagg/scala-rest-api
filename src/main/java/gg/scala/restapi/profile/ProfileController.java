@@ -63,7 +63,6 @@ public class ProfileController {
     public ResponseEntity<ProfileResponse> getProfile(@PathVariable String uuid, @RequestParam(name = "webResolved", defaultValue = "false") boolean web, @RequestParam(name = "includePermissions", defaultValue = "false") boolean perms) {
         Optional<Profile> profile = profileService.getById(uuid);
         if (profile.isEmpty()) {
-            System.out.println("Failed to find profile with UUID: " + uuid);
             return ResponseEntity.notFound().build();
         }
 
@@ -77,7 +76,7 @@ public class ProfileController {
         List<ForumThreadResponse> threads = null;
         List<String> badges = null;
         List<FriendResponse> friends = new ArrayList<>();
-        List<Notification> notifications = new ArrayList<>();
+        List<Notification> notifi = new ArrayList<>();
 
         if (web) {
             activeGrants = grantService.getAllActiveGrants(uuid);
@@ -123,10 +122,7 @@ public class ProfileController {
                     ).toList();
 
             threads = forumThreadService.getThreadsByAuthor(uuid).stream().map(forumThreadResponseUtil::transform).toList();
-
-
-            notifications = notificationRepository.findByTarget(uuid);
-
+            notifi = notificationRepository.findByTarget(uuid);
         } else {
             webSettings = null;
         }
@@ -154,7 +150,7 @@ public class ProfileController {
             }
         }
 
-        return ResponseEntity.ok(new ProfileResponse(profile.get(), activeGrants, activeBan, activeMute, rank, webSettings, effectivePermissions, comments, threads, badges, friends, notifications));
+        return ResponseEntity.ok(new ProfileResponse(profile.get(), activeGrants, activeBan, activeMute, rank, webSettings, effectivePermissions, comments, threads, badges, friends, notifi));
     }
 
     @PutMapping("/settings/{uuid}")
