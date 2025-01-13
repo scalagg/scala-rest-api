@@ -2,11 +2,14 @@ package gg.scala.restapi.tickets;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import gg.scala.restapi.profile.ProfileService;
+import gg.scala.restapi.profile.notification.Notification;
+import gg.scala.restapi.profile.notification.NotificationRepository;
 import gg.scala.restapi.util.UUIDCache;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -15,11 +18,13 @@ public class TicketController {
     private final TicketService ticketService;
     private final TicketReplyRepository ticketReplyRepository;
     private final ProfileService profileService;
+    private final NotificationRepository notificationRepository;
 
-    public TicketController(TicketService ticketService, TicketReplyRepository ticketReplyRepository, ProfileService profileService) {
+    public TicketController(TicketService ticketService, TicketReplyRepository ticketReplyRepository, ProfileService profileService, NotificationRepository notificationRepository) {
         this.ticketService = ticketService;
         this.ticketReplyRepository = ticketReplyRepository;
         this.profileService = profileService;
+        this.notificationRepository = notificationRepository;
     }
 
     @GetMapping("/{id}")
@@ -68,6 +73,16 @@ public class TicketController {
             return ResponseEntity.badRequest().build();
         }
 
+        Notification notification = new Notification(
+                UUID.randomUUID().toString(),
+                ticket.getAuthor(),
+                System.currentTimeMillis(),
+                "{userName} has replied to your thread/ticket! Click here to visit your ticket/thread!",
+                Map.of("{userName}", UUIDCache.getName(UUID.fromString(ticketReply.getAuthor()))),
+                false
+        );
+        notificationRepository.save(notification);
+
         ticketReply.setParentTicketId(id);
         return ResponseEntity.ok(ticketReplyRepository.save(ticketReply));
     }
@@ -80,6 +95,19 @@ public class TicketController {
         }
 
         if (body.has("status")) {
+            Notification notification = new Notification(
+                    UUID.randomUUID().toString(),
+                    existing.getAuthor(),
+                    System.currentTimeMillis(),
+                    "Your ticket {ticketName} has been marked as {statusUpdate}! Click here to visit your ticket!",
+                    Map.of(
+                            "{ticketName}", existing.getTitle(),
+                            "{statusUpdate}", body.get("status").asText()
+                    ),
+                    false
+            );
+            notificationRepository.save(notification);
+
             existing.setStatus(body.get("status").asText());
         }
 

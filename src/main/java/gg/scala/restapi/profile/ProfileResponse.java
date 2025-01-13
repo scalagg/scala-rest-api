@@ -5,6 +5,7 @@ import gg.scala.restapi.profile.comments.Comment;
 import gg.scala.restapi.profile.comments.CommentResponse;
 import gg.scala.restapi.profile.friend.FriendResponse;
 import gg.scala.restapi.profile.grant.Grant;
+import gg.scala.restapi.profile.notification.Notification;
 import gg.scala.restapi.profile.punishment.Punishment;
 import gg.scala.restapi.rank.Rank;
 import lombok.AllArgsConstructor;
@@ -28,8 +29,9 @@ public class ProfileResponse extends Profile {
     private final @Nullable List<ForumThreadResponse> threads;
     private final @Nullable List<String> badges;
     private final @Nullable List<FriendResponse> friends;
+    private final @Nullable List<Notification> notifications;
 
-    public ProfileResponse(Profile profile, List<Grant> activeGrants, @Nullable Punishment activeBan, @Nullable Punishment activeMute, Rank rank, Document webSettings, @Nullable List<String> effectivePermissions, @Nullable List<CommentResponse> comments, @Nullable List<ForumThreadResponse> threads, @Nullable List<String> badges, @Nullable List<FriendResponse> friends) {
+    public ProfileResponse(Profile profile, List<Grant> activeGrants, @Nullable Punishment activeBan, @Nullable Punishment activeMute, Rank rank, Document webSettings, @Nullable List<String> effectivePermissions, @Nullable List<CommentResponse> comments, @Nullable List<ForumThreadResponse> threads, @Nullable List<String> badges, @Nullable List<FriendResponse> friends, @Nullable List<Notification> notifications) {
         super(profile.getUniqueId(), profile.getIgnoring(), profile.getIpAddress(), profile.getMetadata(), profile.getName(), profile.getPastIpAddresses(), profile.getSpecificPermissions(), profile.getTimestamp());
         this.activeGrants = activeGrants;
         this.activeBan = activeBan;
@@ -41,5 +43,6 @@ public class ProfileResponse extends Profile {
         this.threads = threads;
         this.badges = badges;
         this.friends = friends;
+        this.notifications = notifications;
     }
 }

@@ -13,6 +13,8 @@ import gg.scala.restapi.profile.friend.FriendService;
 import gg.scala.restapi.profile.grant.Grant;
 import gg.scala.restapi.profile.grant.GrantRepository;
 import gg.scala.restapi.profile.grant.GrantService;
+import gg.scala.restapi.profile.notification.Notification;
+import gg.scala.restapi.profile.notification.NotificationRepository;
 import gg.scala.restapi.profile.punishment.Punishment;
 import gg.scala.restapi.profile.punishment.PunishmentService;
 import gg.scala.restapi.rank.Rank;
@@ -41,8 +43,9 @@ public class ProfileController {
     private final ForumThreadResponseUtil forumThreadResponseUtil;
     private final FriendService friendService;
     private final KFriendsRepository kFriendsRepository;
+    private final NotificationRepository notificationRepository;
 
-    public ProfileController(ProfileService profileService, GrantService grantService, RankService rankService, AccountService accountService, PunishmentService punishmentService, CommentService commentService, ForumThreadService forumThreadService, ForumThreadResponseUtil forumThreadResponseUtil, FriendService friendService, KFriendsRepository kFriendsRepository) {
+    public ProfileController(ProfileService profileService, GrantService grantService, RankService rankService, AccountService accountService, PunishmentService punishmentService, CommentService commentService, ForumThreadService forumThreadService, ForumThreadResponseUtil forumThreadResponseUtil, FriendService friendService, KFriendsRepository kFriendsRepository, NotificationRepository notificationRepository) {
         this.profileService = profileService;
         this.grantService = grantService;
         this.rankService = rankService;
@@ -53,12 +56,14 @@ public class ProfileController {
         this.forumThreadResponseUtil = forumThreadResponseUtil;
         this.friendService = friendService;
         this.kFriendsRepository = kFriendsRepository;
+        this.notificationRepository = notificationRepository;
     }
 
     @GetMapping("/{uuid}")
     public ResponseEntity<ProfileResponse> getProfile(@PathVariable String uuid, @RequestParam(name = "webResolved", defaultValue = "false") boolean web, @RequestParam(name = "includePermissions", defaultValue = "false") boolean perms) {
         Optional<Profile> profile = profileService.getById(uuid);
         if (profile.isEmpty()) {
+            System.out.println("Failed to find profile with UUID: " + uuid);
             return ResponseEntity.notFound().build();
         }
 
@@ -72,6 +77,7 @@ public class ProfileController {
         List<ForumThreadResponse> threads = null;
         List<String> badges = null;
         List<FriendResponse> friends = new ArrayList<>();
+        List<Notification> notifications = new ArrayList<>();
 
         if (web) {
             activeGrants = grantService.getAllActiveGrants(uuid);
@@ -118,6 +124,9 @@ public class ProfileController {
 
             threads = forumThreadService.getThreadsByAuthor(uuid).stream().map(forumThreadResponseUtil::transform).toList();
 
+
+            notifications = notificationRepository.findByTarget(uuid);
+
         } else {
             webSettings = null;
         }
@@ -145,7 +154,7 @@ public class ProfileController {
             }
         }
 
-        return ResponseEntity.ok(new ProfileResponse(profile.get(), activeGrants, activeBan, activeMute, rank, webSettings, effectivePermissions, comments, threads, badges, friends));
+        return ResponseEntity.ok(new ProfileResponse(profile.get(), activeGrants, activeBan, activeMute, rank, webSettings, effectivePermissions, comments, threads, badges, friends, notifications));
     }
 
     @PutMapping("/settings/{uuid}")

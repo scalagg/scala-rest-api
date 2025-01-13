@@ -31,8 +31,10 @@ public class UUIDCache {
                         throw new DataNotFoundException("Could not find UUID for " + name);
 
                     JsonObject parsed = JSON_PARSER.parse(response).getAsJsonObject();
-                    if (!parsed.has("id") || parsed.get("id").isJsonNull())
+                    if (!parsed.has("id") || parsed.get("id").isJsonNull()) {
+                        System.out.println(parsed);
                         throw new DataNotFoundException("Could not find UUID for " + name);
+                    }
 
                     String uuid = parsed.get("id").getAsString().replace("-", "");
 

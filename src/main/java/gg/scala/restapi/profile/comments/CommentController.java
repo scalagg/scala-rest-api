@@ -1,9 +1,13 @@
 package gg.scala.restapi.profile.comments;
 
 import gg.scala.restapi.profile.ProfileService;
+import gg.scala.restapi.profile.notification.Notification;
+import gg.scala.restapi.profile.notification.NotificationRepository;
+import gg.scala.restapi.util.UUIDCache;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -11,10 +15,12 @@ import java.util.UUID;
 public class CommentController {
     private final ProfileService profileService;
     private final CommentService commentService;
+    private final NotificationRepository notificationRepository;
 
-    public CommentController(ProfileService profileService, CommentService commentService) {
+    public CommentController(ProfileService profileService, CommentService commentService, NotificationRepository notificationRepository) {
         this.profileService = profileService;
         this.commentService = commentService;
+        this.notificationRepository = notificationRepository;
     }
 
     @PostMapping
@@ -26,6 +32,18 @@ public class CommentController {
         comment.setUuid(UUID.randomUUID().toString());
         comment.setAddedAt(System.currentTimeMillis());
         commentService.save(comment);
+
+        if (!comment.getProfileId().equals(comment.getAuthor())) {
+            Notification notification = new Notification(
+                    UUID.randomUUID().toString(),
+                    comment.getProfileId(),
+                    System.currentTimeMillis(),
+                    "{userName} has made a comment on your profile!",
+                    Map.of("{userName}", UUIDCache.getName(UUID.fromString(comment.getAuthor()))),
+                    false
+            );
+            notificationRepository.save(notification);
+        }
 
         return ResponseEntity.ok().build();
     }

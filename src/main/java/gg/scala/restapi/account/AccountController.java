@@ -121,7 +121,6 @@ public class AccountController {
             }
 
             if (password != null && !passwordEncoder.matches(password, account.get().getPassword())) {
-                System.out.println("Password incorrect for " + username);
                 return ResponseEntity.badRequest().build();
             }
 
