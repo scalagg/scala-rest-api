@@ -38,7 +38,7 @@ public class RankController {
                 processed.add(grant.getTarget());
             });
 
-            ranks.add(new StaffRank(rank.getUuid(), rank.getName(), rank.getWeight(), rank.getColor(), members));
+            ranks.add(new StaffRank(rank.getUuid(), rank.getName(), rank.getDisplayName(), rank.getWeight(), rank.getColor(), members));
         });
 
         return ResponseEntity.ok(ranks);

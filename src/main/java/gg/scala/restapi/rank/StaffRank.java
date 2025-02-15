@@ -5,6 +5,7 @@ import java.util.List;
 public record StaffRank(
         String uuid,
         String name,
+        String displayName,
         int weight,
         String color,
         List<StaffRankMember> members
