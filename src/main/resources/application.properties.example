@@ -4,8 +4,8 @@ server.port=8081
 spring.data.mongodb.uri=
 spring.data.mongodb.database=
 
-# POTPVP or SOLARA
-server.type=SOLARA
+# POTPVP or SCALA
+server.type=SCALA
 
 spring.mail.host=
 spring.mail.port=

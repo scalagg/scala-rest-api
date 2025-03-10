@@ -7,9 +7,9 @@ import lombok.Getter;
 @AllArgsConstructor
 @Getter
 public enum ServerType {
-    SOLARA(
-            "Solara",
-            "https://solara.gg"
+    SCALA(
+            "Scala",
+            "https://scala.gg"
     ),
     POTPVP(
             "PotPvP",

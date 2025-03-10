@@ -81,7 +81,7 @@ public class AccountController {
         MimeMessageHelper helper = new MimeMessageHelper(message);
         helper.setFrom("no-reply@scala.gg");
         helper.setTo(registrationRequest.email());
-        helper.setSubject("Welcome to %s".formatted(serverType.getName()));
+        helper.setSubject("Confirm your %s Account".formatted(serverType.getName()));
 
         helper.setText(
                 new String(emailRegister.getInputStream().readAllBytes())
