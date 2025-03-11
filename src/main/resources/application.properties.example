@@ -1,4 +1,4 @@
-spring.application.name=solora
+spring.application.name=scala
 server.port=8081
 
 spring.data.mongodb.uri=
@@ -7,11 +7,11 @@ spring.data.mongodb.database=
 # POTPVP or SCALA
 server.type=SCALA
 
-spring.mail.host=
-spring.mail.port=
-spring.mail.username=
+spring.mail.host=mail.scala.gg
+spring.mail.port=465
+spring.mail.username=no-reply@scala.gg
 spring.mail.password=
-spring.mail.test-connection=false
-spring.mail.properties.mail.smtp.auth=true
-spring.mail.properties.mail.smtp.starttls.enable=true
-spring.mail.properties.mail.smtp.starttls.required=true
+spring.mail.test-connection=true
+spring.mail.properties.mail.smtp.ssl.enable=true
+spring.mail.properties.mail.smtp.starttls.enable=false
+spring.mail.properties.mail.smtp.starttls.required=false
