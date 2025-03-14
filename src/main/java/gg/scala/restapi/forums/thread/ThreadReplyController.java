@@ -3,6 +3,7 @@ package gg.scala.restapi.forums.thread;
 import gg.scala.restapi.profile.ProfileService;
 import gg.scala.restapi.profile.notification.Notification;
 import gg.scala.restapi.profile.notification.NotificationRepository;
+import gg.scala.restapi.rank.Rank;
 import gg.scala.restapi.rank.RankService;
 import gg.scala.restapi.util.UUIDCache;
 import org.springframework.http.ResponseEntity;
@@ -46,9 +47,23 @@ public class ThreadReplyController {
      * @return ThreadReplyResponse
      */
     private ThreadReplyResponse getThreadReplyResponse(ThreadReply threadReply) {
+        Rank activeRank = profileService.getActiveRank(threadReply.getAuthor());
+
+        if (activeRank == null) {
+            System.out.println("Found null rank for user with UUID: " + threadReply.getAuthor());
+            return new ThreadReplyResponse(
+                    threadReply,
+                    "#FFFFFF",
+                    threadReplyRepository.findAllByParentReplyId(threadReply.getUuid())
+                            .stream()
+                            .map(this::getThreadReplyResponse)
+                            .toList()
+            );
+        }
+
         return new ThreadReplyResponse(
                 threadReply,
-                profileService.getActiveRank(threadReply.getAuthor()).getColor(),
+                activeRank.getColor(),
                 threadReplyRepository.findAllByParentReplyId(threadReply.getUuid())
                         .stream()
                         .map(this::getThreadReplyResponse)

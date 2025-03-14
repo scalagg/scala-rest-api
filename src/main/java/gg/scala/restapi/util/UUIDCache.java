@@ -10,6 +10,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -18,47 +19,52 @@ import java.util.regex.Pattern;
 public class UUIDCache {
 
     private static final JsonParser JSON_PARSER = new JsonParser();
-    private static final LoadingCache<String, UUID> NAME_UUID_CACHE = CacheBuilder.newBuilder()
+    private static final LoadingCache<String, Optional<UUID>> NAME_UUID_CACHE = CacheBuilder.newBuilder()
             .expireAfterAccess(15L, TimeUnit.MINUTES)
             .build(new CacheLoader<>() {
                 @Override
-                public UUID load(String name) throws DataNotFoundException {
+                public Optional<UUID> load(String name) {
                     if (name.equalsIgnoreCase("CONSOLE"))
-                        return new UUID(0, 0);
+                        return Optional.of(new UUID(0, 0));
 
                     String response = getResponse("https://api.minetools.eu/uuid/" + name);
-                    if (response == null)
-                        throw new DataNotFoundException("Could not find UUID for " + name);
+                    if (response == null) {
+                        System.out.println("Could not find UUID for " + name);
+                        return Optional.empty();
+                    }
 
                     JsonObject parsed = JSON_PARSER.parse(response).getAsJsonObject();
                     if (!parsed.has("id") || parsed.get("id").isJsonNull()) {
-                        System.out.println(parsed);
-                        throw new DataNotFoundException("Could not find UUID for " + name);
+                        System.out.println("Could not find UUID for " + name + ": " + parsed);
+                        return Optional.empty();
                     }
 
                     String uuid = parsed.get("id").getAsString().replace("-", "");
-
-                    return UUID.fromString(insertHyphens(uuid));
+                    return Optional.of(UUID.fromString(insertHyphens(uuid)));
                 }
             });
 
-    private static final LoadingCache<UUID, String> UUID_NAME_CACHE = CacheBuilder.newBuilder()
+    private static final LoadingCache<UUID, Optional<String>> UUID_NAME_CACHE = CacheBuilder.newBuilder()
             .expireAfterAccess(15L, TimeUnit.MINUTES)
             .build(new CacheLoader<>() {
                 @Override
-                public String load(UUID uuid) throws DataNotFoundException {
+                public Optional<String> load(UUID uuid) {
                     if (uuid.getMostSignificantBits() == 0 && uuid.getLeastSignificantBits() == 0)
-                        return "CONSOLE";
+                        return Optional.of("CONSOLE");
 
                     String response = getResponse("https://api.minetools.eu/uuid/" + uuid);
-                    if (response == null)
-                        throw new DataNotFoundException("Could not find name for " + uuid);
+                    if (response == null) {
+                        System.out.println("Could not find name for " + uuid);
+                        return Optional.empty();
+                    }
 
                     JsonObject parsed = JSON_PARSER.parse(response).getAsJsonObject();
-                    if (!parsed.has("name") || parsed.get("name").isJsonNull())
-                        throw new DataNotFoundException("Could not find name for " + uuid);
+                    if (!parsed.has("name") || parsed.get("name").isJsonNull()) {
+                        System.out.println("Could not find name for " + uuid);
+                        return Optional.empty();
+                    }
 
-                    return parsed.get("name").getAsString();
+                    return Optional.of(parsed.get("name").getAsString());
                 }
             });
 
@@ -68,20 +74,18 @@ public class UUIDCache {
 
     public static UUID getUuid(String name) {
         try {
-            return NAME_UUID_CACHE.get(name);
+            return NAME_UUID_CACHE.get(name).orElse(null);
         } catch (ExecutionException e) {
-            if (!(e.getCause() instanceof DataNotFoundException))
-                e.printStackTrace();
+            e.printStackTrace();
             return null;
         }
     }
 
     public static String getName(UUID uuid) {
         try {
-            return UUID_NAME_CACHE.get(uuid);
+            return UUID_NAME_CACHE.get(uuid).orElse(null);
         } catch (ExecutionException e) {
-            if (!(e.getCause() instanceof DataNotFoundException))
-                e.printStackTrace();
+            e.printStackTrace();
             return null;
         }
     }
@@ -95,7 +99,6 @@ public class UUIDCache {
             return redis.hget("UUIDCache", uuid.toString());
         });
     }
-
      */
 
     public static boolean isUuid(String input) {
@@ -129,6 +132,4 @@ public class UUIDCache {
 
         return sb.toString();
     }
-
 }
-
