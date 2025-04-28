@@ -19,14 +19,14 @@ import java.util.List;
 public class ApiKeyAuthFilter extends OncePerRequestFilter {
     private final String apiKey;
     private final List<String> excludedPaths = List.of(
-        "/swagger-ui/",
-        "/v3/api-docs/",
+        "/swagger-ui",
+        "/v3/api-docs",
         "/swagger-ui.html",
-        "/swagger-resources/",
-        "/webjars/",
-        "/css/",
-        "/js/",
-        "/images/",
+        "/swagger-resources",
+        "/webjars",
+        "/css",
+        "/js",
+        "/images",
         "/actuator/health"
     );
 
