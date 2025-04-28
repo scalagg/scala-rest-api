@@ -28,6 +28,13 @@ public class SecurityConfig {
                 .addFilterBefore(new ApiKeyAuthFilter(apiKey), UsernamePasswordAuthenticationFilter.class)
                 .authorizeHttpRequests(authorizeRequests ->
                         authorizeRequests
+                                // Allow access to Swagger UI and OpenAPI documentation
+                                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
+                                // Allow access to static resources
+                                .requestMatchers("/css/**", "/js/**", "/images/**").permitAll()
+                                // Allow access to health check endpoint
+                                .requestMatchers("/actuator/health").permitAll()
+                                // Require authentication for all other endpoints
                                 .anyRequest().authenticated()
                 )
                 .csrf(AbstractHttpConfigurer::disable)
