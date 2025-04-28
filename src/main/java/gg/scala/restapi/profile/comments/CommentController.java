@@ -6,12 +6,20 @@ import gg.scala.restapi.profile.notification.NotificationRepository;
 import gg.scala.restapi.util.UUIDCache;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.Map;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/forum/account/comment")
+@Tag(name = "Comment Management", description = "APIs for managing profile comments and interactions")
 public class CommentController {
     private final ProfileService profileService;
     private final CommentService commentService;
@@ -23,8 +31,14 @@ public class CommentController {
         this.notificationRepository = notificationRepository;
     }
 
+    @Operation(summary = "Create comment", description = "Creates a new comment on a user's profile")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Comment created successfully"),
+        @ApiResponse(responseCode = "404", description = "Profile not found")
+    })
     @PostMapping
-    public ResponseEntity<Void> createComment(@RequestBody Comment comment) {
+    public ResponseEntity<Void> createComment(
+            @Parameter(description = "Comment creation request") @RequestBody Comment comment) {
         if (profileService.getById(comment.getProfileId()).isEmpty()) {
             return ResponseEntity.notFound().build();
         }
@@ -48,8 +62,15 @@ public class CommentController {
         return ResponseEntity.ok().build();
     }
 
+    @Operation(summary = "Delete comment", description = "Deletes a comment from a user's profile")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Comment deleted successfully"),
+        @ApiResponse(responseCode = "404", description = "Comment or profile not found")
+    })
     @DeleteMapping("/{profileId}/{uuid}")
-    public ResponseEntity<Void> deleteComment(@PathVariable String profileId, @PathVariable String uuid) {
+    public ResponseEntity<Void> deleteComment(
+            @Parameter(description = "Profile UUID") @PathVariable String profileId,
+            @Parameter(description = "Comment UUID") @PathVariable String uuid) {
         Comment comment = commentService.getComment(uuid);
         if (comment == null || !comment.getProfileId().equals(profileId)) {
             return ResponseEntity.notFound().build();

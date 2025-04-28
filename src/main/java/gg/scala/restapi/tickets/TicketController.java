@@ -7,6 +7,13 @@ import gg.scala.restapi.profile.notification.NotificationRepository;
 import gg.scala.restapi.util.UUIDCache;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.List;
 import java.util.Map;
@@ -14,6 +21,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/forum/ticket")
+@Tag(name = "Ticket Management", description = "APIs for managing support tickets and applications")
 public class TicketController {
     private final TicketService ticketService;
     private final TicketReplyRepository ticketReplyRepository;
@@ -27,8 +35,14 @@ public class TicketController {
         this.notificationRepository = notificationRepository;
     }
 
+    @Operation(summary = "Get ticket", description = "Retrieves a specific ticket by ID")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Ticket found", content = @Content(schema = @Schema(implementation = TicketResponse.class))),
+        @ApiResponse(responseCode = "404", description = "Ticket not found")
+    })
     @GetMapping("/{id}")
-    public ResponseEntity<TicketResponse> getTicket(@PathVariable String id) {
+    public ResponseEntity<TicketResponse> getTicket(
+            @Parameter(description = "Ticket ID") @PathVariable String id) {
         Ticket ticket = ticketService.getById(id);
         if (ticket == null) {
             return ResponseEntity.notFound().build();
@@ -37,28 +51,54 @@ public class TicketController {
         return ResponseEntity.ok(map(ticket));
     }
 
+    @Operation(summary = "Get player tickets", description = "Retrieves all tickets for a specific player")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Tickets retrieved successfully", content = @Content(schema = @Schema(implementation = TicketResponse.class))),
+        @ApiResponse(responseCode = "404", description = "Player not found")
+    })
     @GetMapping("/player/{id}")
-    public ResponseEntity<List<TicketResponse>> getTicketForPlayer(@PathVariable String id) {
+    public ResponseEntity<List<TicketResponse>> getTicketForPlayer(
+            @Parameter(description = "Player UUID") @PathVariable String id) {
         return ResponseEntity.ok(ticketService.getTickets(id).stream().map(this::map).toList());
     }
 
+    @Operation(summary = "Get all tickets", description = "Retrieves all tickets in the system")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Tickets retrieved successfully", content = @Content(schema = @Schema(implementation = TicketResponse.class)))
+    })
     @GetMapping("/s/all")
     public ResponseEntity<List<TicketResponse>> getAllTickets() {
         return ResponseEntity.ok(ticketService.getAll().stream().map(this::map).toList());
     }
 
+    @Operation(summary = "Get all application tickets", description = "Retrieves all application tickets in the system")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Application tickets retrieved successfully", content = @Content(schema = @Schema(implementation = TicketResponse.class)))
+    })
     @GetMapping("/s/all/applications")
     public ResponseEntity<List<TicketResponse>> getAllApplicationTickets() {
         return ResponseEntity.ok(ticketService.getAllApplicationTickets().stream().map(this::map).toList());
     }
 
+    @Operation(summary = "Get player application tickets", description = "Retrieves all application tickets for a specific player")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Application tickets retrieved successfully", content = @Content(schema = @Schema(implementation = TicketResponse.class))),
+        @ApiResponse(responseCode = "404", description = "Player not found")
+    })
     @GetMapping("/player/{id}/applications")
-    public ResponseEntity<List<TicketResponse>> getApplicationTicketsForPlayer(@PathVariable String id) {
+    public ResponseEntity<List<TicketResponse>> getApplicationTicketsForPlayer(
+            @Parameter(description = "Player UUID") @PathVariable String id) {
         return ResponseEntity.ok(ticketService.getApplicationTickets(id).stream().map(this::map).toList());
     }
 
+    @Operation(summary = "Create ticket", description = "Creates a new support ticket")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Ticket created successfully", content = @Content(schema = @Schema(implementation = TicketResponse.class))),
+        @ApiResponse(responseCode = "400", description = "Invalid request or ticket already exists")
+    })
     @PostMapping
-    public ResponseEntity<TicketResponse> createTicket(@RequestBody Ticket ticket) {
+    public ResponseEntity<TicketResponse> createTicket(
+            @Parameter(description = "Ticket creation request") @RequestBody Ticket ticket) {
         if (ticketService.getById(ticket.getId()) != null) {
             return ResponseEntity.badRequest().build();
         }
@@ -66,8 +106,15 @@ public class TicketController {
         return ResponseEntity.ok(map(ticketService.save(ticket)));
     }
 
+    @Operation(summary = "Create ticket reply", description = "Adds a reply to an existing ticket")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Reply created successfully", content = @Content(schema = @Schema(implementation = TicketReply.class))),
+        @ApiResponse(responseCode = "400", description = "Invalid request or ticket not found")
+    })
     @PostMapping("/{id}/reply")
-    public ResponseEntity<TicketReply> createReply(@PathVariable String id, @RequestBody TicketReply ticketReply) {
+    public ResponseEntity<TicketReply> createReply(
+            @Parameter(description = "Ticket ID") @PathVariable String id,
+            @Parameter(description = "Reply creation request") @RequestBody TicketReply ticketReply) {
         Ticket ticket = ticketService.getById(id);
         if (ticket == null) {
             return ResponseEntity.badRequest().build();
@@ -87,8 +134,15 @@ public class TicketController {
         return ResponseEntity.ok(ticketReplyRepository.save(ticketReply));
     }
 
+    @Operation(summary = "Update ticket", description = "Updates an existing ticket's status and other properties")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Ticket updated successfully", content = @Content(schema = @Schema(implementation = Ticket.class))),
+        @ApiResponse(responseCode = "404", description = "Ticket not found")
+    })
     @PutMapping("/{id}")
-    public ResponseEntity<Ticket> updateTicket(@PathVariable String id, @RequestBody JsonNode body) {
+    public ResponseEntity<Ticket> updateTicket(
+            @Parameter(description = "Ticket ID") @PathVariable String id,
+            @Parameter(description = "Ticket update request") @RequestBody JsonNode body) {
         Ticket existing = ticketService.getById(id);
         if (existing == null) {
             return ResponseEntity.notFound().build();
@@ -139,5 +193,4 @@ public class TicketController {
                 profileService.getActiveRank(ticket.getAuthor()).getColor()
         );
     }
-
 }

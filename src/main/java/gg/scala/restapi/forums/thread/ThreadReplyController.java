@@ -8,6 +8,13 @@ import gg.scala.restapi.rank.RankService;
 import gg.scala.restapi.util.UUIDCache;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.Map;
 import java.util.Optional;
@@ -15,6 +22,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/forum/replies")
+@Tag(name = "Thread Reply Management", description = "APIs for managing forum thread replies and discussions")
 public class ThreadReplyController {
     private final ThreadReplyRepository threadReplyRepository;
     private final ForumThreadService forumThreadService;
@@ -30,6 +38,10 @@ public class ThreadReplyController {
         this.notificationRepository = notificationRepository;
     }
 
+    @Operation(summary = "Get all replies", description = "Retrieves all top-level replies in the forum")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Replies retrieved successfully", content = @Content(schema = @Schema(implementation = ThreadReplyResponse.class)))
+    })
     @GetMapping
     public ResponseEntity<Iterable<ThreadReplyResponse>> getReplies() {
         return ResponseEntity.ok(
@@ -40,40 +52,15 @@ public class ThreadReplyController {
         );
     }
 
-    /**
-     * Get all replies for a specific thread
-     *
-     * @param threadReply
-     * @return ThreadReplyResponse
-     */
-    private ThreadReplyResponse getThreadReplyResponse(ThreadReply threadReply) {
-        Rank activeRank = profileService.getActiveRank(threadReply.getAuthor());
-
-        if (activeRank == null) {
-            System.out.println("Found null rank for user with UUID: " + threadReply.getAuthor());
-            return new ThreadReplyResponse(
-                    threadReply,
-                    "#FFFFFF",
-                    threadReplyRepository.findAllByParentReplyId(threadReply.getUuid())
-                            .stream()
-                            .map(this::getThreadReplyResponse)
-                            .toList()
-            );
-        }
-
-        return new ThreadReplyResponse(
-                threadReply,
-                activeRank.getColor(),
-                threadReplyRepository.findAllByParentReplyId(threadReply.getUuid())
-                        .stream()
-                        .map(this::getThreadReplyResponse)
-                        .toList()
-        );
-    }
-
-
+    @Operation(summary = "Create reply", description = "Creates a new reply to a forum thread")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Reply created successfully", content = @Content(schema = @Schema(implementation = ThreadReply.class))),
+        @ApiResponse(responseCode = "400", description = "Invalid request or thread not found")
+    })
     @PostMapping("/{threadId}")
-    public ResponseEntity<ThreadReply> createReply(@PathVariable String threadId, @RequestBody ThreadReply threadReply) {
+    public ResponseEntity<ThreadReply> createReply(
+            @Parameter(description = "Thread ID") @PathVariable String threadId,
+            @Parameter(description = "Reply creation request") @RequestBody ThreadReply threadReply) {
         ForumThread thread = forumThreadService.getThread(threadId);
         if (thread == null) {
             return ResponseEntity.badRequest().build();
@@ -117,8 +104,14 @@ public class ThreadReplyController {
         return ResponseEntity.ok(threadReplyRepository.save(threadReply));
     }
 
+    @Operation(summary = "Delete reply", description = "Deletes a reply from a forum thread")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Reply deleted successfully"),
+        @ApiResponse(responseCode = "404", description = "Reply not found")
+    })
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteReply(@PathVariable String id) {
+    public ResponseEntity<Void> deleteReply(
+            @Parameter(description = "Reply ID") @PathVariable String id) {
         Optional<ThreadReply> threadReply = threadReplyRepository.findById(id);
         if (threadReply.isEmpty()) {
             return ResponseEntity.notFound().build();
@@ -126,5 +119,36 @@ public class ThreadReplyController {
 
         threadReplyRepository.delete(threadReply.get());
         return ResponseEntity.ok().build();
+    }
+
+    /**
+     * Get all replies for a specific thread
+     *
+     * @param threadReply
+     * @return ThreadReplyResponse
+     */
+    private ThreadReplyResponse getThreadReplyResponse(ThreadReply threadReply) {
+        Rank activeRank = profileService.getActiveRank(threadReply.getAuthor());
+
+        if (activeRank == null) {
+            System.out.println("Found null rank for user with UUID: " + threadReply.getAuthor());
+            return new ThreadReplyResponse(
+                    threadReply,
+                    "#FFFFFF",
+                    threadReplyRepository.findAllByParentReplyId(threadReply.getUuid())
+                            .stream()
+                            .map(this::getThreadReplyResponse)
+                            .toList()
+            );
+        }
+
+        return new ThreadReplyResponse(
+                threadReply,
+                activeRank.getColor(),
+                threadReplyRepository.findAllByParentReplyId(threadReply.getUuid())
+                        .stream()
+                        .map(this::getThreadReplyResponse)
+                        .toList()
+        );
     }
 }

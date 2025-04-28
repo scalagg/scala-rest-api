@@ -13,6 +13,13 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -21,6 +28,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/forum/account")
+@Tag(name = "Account Management", description = "APIs for managing user accounts")
 public class AccountController {
     private final AccountService accountService;
     private final ProfileService profileService;
@@ -43,8 +51,17 @@ public class AccountController {
         this.passwordEncoder = passwordEncoder;
     }
 
+    @Operation(summary = "Send registration email", description = "Sends a registration confirmation email to the user")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Registration email sent successfully"),
+        @ApiResponse(responseCode = "400", description = "Invalid request parameters"),
+        @ApiResponse(responseCode = "401", description = "Email already exists"),
+        @ApiResponse(responseCode = "404", description = "Profile not found")
+    })
     @PostMapping("/sendRegistration/{uuid}")
-    public ResponseEntity<Void> sendRegistration(@RequestBody InitialRegistrationRequest registrationRequest, @PathVariable String uuid) throws MessagingException, IOException {
+    public ResponseEntity<Void> sendRegistration(
+            @Parameter(description = "Registration request containing email and token") @RequestBody InitialRegistrationRequest registrationRequest,
+            @Parameter(description = "User UUID") @PathVariable String uuid) throws MessagingException, IOException {
         if (registrationRequest.email() == null || registrationRequest.token() == null) {
             return ResponseEntity.badRequest().build();
         }
@@ -94,8 +111,15 @@ public class AccountController {
         return ResponseEntity.ok().build();
     }
 
+    @Operation(summary = "Register user", description = "Completes the registration process for a user")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Registration completed successfully"),
+        @ApiResponse(responseCode = "400", description = "Invalid request parameters"),
+        @ApiResponse(responseCode = "404", description = "Token not found")
+    })
     @PostMapping("/register")
-    public ResponseEntity<Void> register(@RequestBody RegistrationRequest registrationRequest) {
+    public ResponseEntity<Void> register(
+            @Parameter(description = "Registration request containing token and password") @RequestBody RegistrationRequest registrationRequest) {
         if (accountService.getByToken(registrationRequest.token()).isEmpty()) {
             return ResponseEntity.notFound().build();
         }
@@ -112,8 +136,16 @@ public class AccountController {
         return ResponseEntity.ok().build();
     }
 
+    @Operation(summary = "User login", description = "Authenticates a user and returns their account information")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Login successful", content = @Content(schema = @Schema(implementation = Account.class))),
+        @ApiResponse(responseCode = "400", description = "Invalid credentials"),
+        @ApiResponse(responseCode = "404", description = "Account not found")
+    })
     @GetMapping("/login/{username}")
-    public ResponseEntity<Account> login(@PathVariable String username, @RequestParam(required = false) String password) {
+    public ResponseEntity<Account> login(
+            @Parameter(description = "Username or email") @PathVariable String username,
+            @Parameter(description = "User password") @RequestParam(required = false) String password) {
         if (username.contains("@")) {
             Optional<Account> account = accountService.getByEmail(username);
             if (account.isEmpty()) {
@@ -140,13 +172,27 @@ public class AccountController {
         return ResponseEntity.ok(account.get());
     }
 
+    @Operation(summary = "Get account by token", description = "Retrieves an account using a token")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Account found", content = @Content(schema = @Schema(implementation = Account.class))),
+        @ApiResponse(responseCode = "404", description = "Token not found")
+    })
     @GetMapping("/token/{token}")
-    public ResponseEntity<Account> getByToken(@PathVariable String token) {
+    public ResponseEntity<Account> getByToken(
+            @Parameter(description = "Account token") @PathVariable String token) {
         return ResponseEntity.ok(accountService.getByToken(token).orElse(null));
     }
 
+    @Operation(summary = "Change password", description = "Updates a user's password")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Password changed successfully"),
+        @ApiResponse(responseCode = "400", description = "Invalid current password"),
+        @ApiResponse(responseCode = "404", description = "Account not found")
+    })
     @PutMapping("/password/{uuid}")
-    public ResponseEntity<Void> changePassword(@PathVariable String uuid, @RequestBody ChangePasswordRequest changePasswordRequest) {
+    public ResponseEntity<Void> changePassword(
+            @Parameter(description = "User UUID") @PathVariable String uuid,
+            @Parameter(description = "Password change request") @RequestBody ChangePasswordRequest changePasswordRequest) {
         Optional<Account> account = accountService.getById(uuid);
         if (account.isEmpty()) {
             return ResponseEntity.notFound().build();
@@ -162,8 +208,14 @@ public class AccountController {
         return ResponseEntity.ok().build();
     }
 
+    @Operation(summary = "Send password reset email", description = "Sends a password reset email to the user")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Password reset email sent successfully"),
+        @ApiResponse(responseCode = "404", description = "Account not found")
+    })
     @PostMapping("/sendResetPassword")
-    public ResponseEntity<Void> sendResetPassword(@RequestBody ResetPasswordRequest resetPasswordRequest) throws MessagingException, IOException {
+    public ResponseEntity<Void> sendResetPassword(
+            @Parameter(description = "Password reset request containing email") @RequestBody ResetPasswordRequest resetPasswordRequest) throws MessagingException, IOException {
         Optional<Account> account = accountService.getByEmail(resetPasswordRequest.email());
         if (account.isEmpty()) {
             return ResponseEntity.notFound().build();
@@ -190,8 +242,15 @@ public class AccountController {
         return ResponseEntity.ok().build();
     }
 
+    @Operation(summary = "Reset password", description = "Resets a user's password using a token")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Password reset successfully"),
+        @ApiResponse(responseCode = "404", description = "Token not found")
+    })
     @PostMapping("/resetPassword/{token}")
-    public ResponseEntity<Void> resetPassword(@PathVariable String token, @RequestBody ConfirmPasswordResetRequest confirmPasswordResetRequest) {
+    public ResponseEntity<Void> resetPassword(
+            @Parameter(description = "Reset token") @PathVariable String token,
+            @Parameter(description = "Password reset confirmation request") @RequestBody ConfirmPasswordResetRequest confirmPasswordResetRequest) {
         Optional<Account> account = accountService.getByToken(token);
         if (account.isEmpty()) {
             return ResponseEntity.notFound().build();
@@ -204,8 +263,14 @@ public class AccountController {
         return ResponseEntity.ok().build();
     }
 
+    @Operation(summary = "Add badge", description = "Adds a badge to a user's account")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Badge added successfully"),
+        @ApiResponse(responseCode = "404", description = "Account not found")
+    })
     @PostMapping("/badge")
-    public ResponseEntity<Void> addBadge(@RequestBody BadgeGivenRequest addBadgeRequest) {
+    public ResponseEntity<Void> addBadge(
+            @Parameter(description = "Badge request containing UUID and badge ID") @RequestBody BadgeGivenRequest addBadgeRequest) {
         Optional<Account> account = accountService.getById(addBadgeRequest.uuid());
         if (account.isEmpty()) {
             return ResponseEntity.notFound().build();
@@ -221,8 +286,14 @@ public class AccountController {
         return ResponseEntity.ok().build();
     }
 
+    @Operation(summary = "Remove badge", description = "Removes a badge from a user's account")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Badge removed successfully"),
+        @ApiResponse(responseCode = "404", description = "Account not found")
+    })
     @PostMapping("/badge/remove")
-    public ResponseEntity<Void> removeBadge(@RequestBody BadgeGivenRequest removeBadgeRequest) {
+    public ResponseEntity<Void> removeBadge(
+            @Parameter(description = "Badge removal request containing UUID and badge ID") @RequestBody BadgeGivenRequest removeBadgeRequest) {
         Optional<Account> account = accountService.getById(removeBadgeRequest.uuid());
         if (account.isEmpty()) {
             return ResponseEntity.notFound().build();

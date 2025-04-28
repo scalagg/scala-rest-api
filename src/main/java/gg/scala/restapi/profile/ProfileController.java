@@ -24,6 +24,13 @@ import gg.scala.restapi.util.UUIDCache;
 import org.bson.Document;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,6 +39,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/profile")
+@Tag(name = "Profile Management", description = "APIs for managing user profiles")
 public class ProfileController {
     private final ProfileService profileService;
     private final GrantService grantService;
@@ -59,6 +67,11 @@ public class ProfileController {
         this.notificationRepository = notificationRepository;
     }
 
+    @Operation(summary = "Get profile", description = "Retrieves a user's profile with optional web-specific data")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Profile found", content = @Content(schema = @Schema(implementation = ProfileResponse.class))),
+        @ApiResponse(responseCode = "404", description = "Profile not found")
+    })
     @GetMapping("/{uuid}")
     public ResponseEntity<ProfileResponse> getProfile(@PathVariable String uuid, @RequestParam(name = "webResolved", defaultValue = "false") boolean web, @RequestParam(name = "includePermissions", defaultValue = "false") boolean perms) {
         Optional<Profile> profile = profileService.getById(uuid);
@@ -153,6 +166,11 @@ public class ProfileController {
         return ResponseEntity.ok(new ProfileResponse(profile.get(), activeGrants, activeBan, activeMute, rank, webSettings, effectivePermissions, comments, threads, badges, friends, notifi));
     }
 
+    @Operation(summary = "Update settings", description = "Updates a user's social media settings")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Settings updated successfully", content = @Content(schema = @Schema(implementation = Account.class))),
+        @ApiResponse(responseCode = "404", description = "User not found")
+    })
     @PutMapping("/settings/{uuid}")
     public ResponseEntity<Account> updateSettings(@PathVariable String uuid, @RequestBody JsonNode settings) {
         Optional<KFriendsPlayer> player = kFriendsRepository.findById(uuid);
@@ -193,6 +211,11 @@ public class ProfileController {
         return ResponseEntity.ok(account);
     }
 
+    @Operation(summary = "Update privacy settings", description = "Updates a user's privacy settings")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Privacy settings updated successfully", content = @Content(schema = @Schema(implementation = Account.class))),
+        @ApiResponse(responseCode = "404", description = "Account not found")
+    })
     @PutMapping("/updatePrivacySettings/{uuid}")
     public ResponseEntity<Account> updatePrivacySettings(@PathVariable String uuid, @RequestBody JsonNode settings) {
         Optional<Account> account = accountService.getById(uuid);
