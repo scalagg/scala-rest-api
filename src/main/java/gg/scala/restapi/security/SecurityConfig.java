@@ -12,6 +12,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 @EnableWebSecurity
 @Configuration
@@ -29,7 +30,13 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authorizeRequests ->
                         authorizeRequests
                                 // Allow access to Swagger UI and OpenAPI documentation
-                                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
+                                .requestMatchers(
+                                    new AntPathRequestMatcher("/swagger-ui/**"),
+                                    new AntPathRequestMatcher("/v3/api-docs/**"),
+                                    new AntPathRequestMatcher("/swagger-ui.html"),
+                                    new AntPathRequestMatcher("/swagger-resources/**"),
+                                    new AntPathRequestMatcher("/webjars/**")
+                                ).permitAll()
                                 // Allow access to static resources
                                 .requestMatchers("/css/**", "/js/**", "/images/**").permitAll()
                                 // Allow access to health check endpoint
