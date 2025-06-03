@@ -1,0 +1,45 @@
+spring.application.name=scala
+server.port=8081
+
+server.type=SCALA
+
+# Disable Spring banner and clean up logging
+spring.main.banner-mode=off
+logging.level.root=INFO
+logging.level.org.springframework=WARN
+logging.level.org.hibernate=WARN
+logging.level.org.mongodb=WARN
+logging.pattern.console=%clr(%d{yyyy-MM-dd HH:mm:ss}){faint} %clr(%5p) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n%wEx
+
+spring.data.mongodb.uri=
+spring.data.mongodb.database=
+
+spring.mail.host=mail.scala.gg
+spring.mail.port=
+spring.mail.username=
+spring.mail.password=
+spring.mail.test-connection=true
+spring.mail.properties.mail.smtp.ssl.enable=true
+spring.mail.properties.mail.smtp.starttls.enable=false
+spring.mail.properties.mail.smtp.starttls.required=false
+
+api.key=
+
+# Swagger UI Configuration
+springdoc.api-docs.path=/v3/api-docs
+springdoc.swagger-ui.path=/swagger-ui.html
+springdoc.swagger-ui.operationsSorter=method
+springdoc.swagger-ui.tagsSorter=alpha
+springdoc.swagger-ui.tryItOutEnabled=true
+springdoc.swagger-ui.filter=true
+springdoc.swagger-ui.syntaxHighlight.activated=true
+springdoc.swagger-ui.syntaxHighlight.theme=monokai
+
+# Disable unnecessary endpoints and features
+management.endpoints.web.exposure.include=health
+management.endpoint.health.show-details=never
+spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
+springdoc.show-actuator=false
+springdoc.api-docs.enabled=true
+springdoc.swagger-ui.enabled=true
+springdoc.packagesToScan=gg.scala.restapi

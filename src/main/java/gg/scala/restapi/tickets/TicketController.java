@@ -27,12 +27,14 @@ public class TicketController {
     private final TicketReplyRepository ticketReplyRepository;
     private final ProfileService profileService;
     private final NotificationRepository notificationRepository;
+    private final EmailService emailService;
 
-    public TicketController(TicketService ticketService, TicketReplyRepository ticketReplyRepository, ProfileService profileService, NotificationRepository notificationRepository) {
+    public TicketController(TicketService ticketService, TicketReplyRepository ticketReplyRepository, ProfileService profileService, NotificationRepository notificationRepository, EmailService emailService) {
         this.ticketService = ticketService;
         this.ticketReplyRepository = ticketReplyRepository;
         this.profileService = profileService;
         this.notificationRepository = notificationRepository;
+        this.emailService = emailService;
     }
 
     @Operation(summary = "Get ticket", description = "Retrieves a specific ticket by ID")
@@ -103,7 +105,20 @@ public class TicketController {
             return ResponseEntity.badRequest().build();
         }
 
-        return ResponseEntity.ok(map(ticketService.save(ticket)));
+        Ticket savedTicket = ticketService.save(ticket);
+        
+        // Send email notification to the ticket creator confirming the ticket was created
+        try {
+            emailService.sendTicketCreationNotification(
+                    savedTicket.getId(),
+                    savedTicket.getTitle(),
+                    savedTicket.getAuthor()
+            );
+        } catch (Exception e) {
+            System.err.println("Failed to send ticket creation email: " + e.getMessage());
+        }
+
+        return ResponseEntity.ok(map(savedTicket));
     }
 
     @Operation(summary = "Create ticket reply", description = "Adds a reply to an existing ticket")
@@ -120,15 +135,28 @@ public class TicketController {
             return ResponseEntity.badRequest().build();
         }
 
-        Notification notification = new Notification(
-                UUID.randomUUID().toString(),
-                ticket.getAuthor(),
-                System.currentTimeMillis(),
-                "{userName} has replied to your thread/ticket! Click here to visit your ticket/thread!",
-                Map.of("{userName}", UUIDCache.getName(UUID.fromString(ticketReply.getAuthor()))),
-                false
-        );
-        notificationRepository.save(notification);
+        // Don't send notification to yourself
+        if (!ticket.getAuthor().equals(ticketReply.getAuthor())) {
+            // Create in-app notification
+            Notification notification = new Notification(
+                    UUID.randomUUID().toString(),
+                    ticket.getAuthor(),
+                    System.currentTimeMillis(),
+                    "{userName} has replied to your ticket! Click here to visit your ticket!",
+                    Map.of("{userName}", UUIDCache.getName(UUID.fromString(ticketReply.getAuthor()))),
+                    false
+            );
+            notificationRepository.save(notification);
+
+            // Send email notification
+            emailService.sendTicketReplyNotification(
+                    ticket.getId(),
+                    ticket.getTitle(),
+                    ticket.getAuthor(),
+                    ticketReply.getAuthor(),
+                    ticketReply.getBody()
+            );
+        }
 
         ticketReply.setParentTicketId(id);
         return ResponseEntity.ok(ticketReplyRepository.save(ticketReply));
@@ -149,6 +177,9 @@ public class TicketController {
         }
 
         if (body.has("status")) {
+            String newStatus = body.get("status").asText();
+            
+            // Create in-app notification
             Notification notification = new Notification(
                     UUID.randomUUID().toString(),
                     existing.getAuthor(),
@@ -156,13 +187,23 @@ public class TicketController {
                     "Your ticket {ticketName} has been marked as {statusUpdate}! Click here to visit your ticket!",
                     Map.of(
                             "{ticketName}", existing.getTitle(),
-                            "{statusUpdate}", body.get("status").asText()
+                            "{statusUpdate}", newStatus
                     ),
                     false
             );
             notificationRepository.save(notification);
 
-            existing.setStatus(body.get("status").asText());
+            // Send email notification (we'll assume the system/staff is updating, so use a generic staff UUID)
+            // In a real implementation, you'd pass the updating user's UUID from the request
+            emailService.sendTicketStatusNotification(
+                    existing.getId(),
+                    existing.getTitle(),
+                    existing.getAuthor(),
+                    newStatus,
+                    existing.getAuthor() // Placeholder - should be the actual updating user
+            );
+
+            existing.setStatus(newStatus);
         }
 
         if (body.has("lastEditedAt")) {
