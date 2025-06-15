@@ -42,6 +42,9 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.security:spring-security-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    
+    // Redis client
+    implementation("redis.clients:jedis:4.3.1")
 }
 
 tasks.withType<Test> {

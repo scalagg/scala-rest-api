@@ -21,6 +21,7 @@ import gg.scala.restapi.rank.Rank;
 import gg.scala.restapi.rank.RankService;
 import gg.scala.restapi.util.ForumThreadResponseUtil;
 import gg.scala.restapi.util.UUIDCache;
+import gg.scala.restapi.cache.OnlinePlayerCache;
 import org.bson.Document;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -34,8 +35,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 @RestController
 @RequestMapping("/profile")
@@ -52,8 +55,9 @@ public class ProfileController {
     private final FriendService friendService;
     private final KFriendsRepository kFriendsRepository;
     private final NotificationRepository notificationRepository;
+    private final OnlinePlayerCache onlinePlayerCache;
 
-    public ProfileController(ProfileService profileService, GrantService grantService, RankService rankService, AccountService accountService, PunishmentService punishmentService, CommentService commentService, ForumThreadService forumThreadService, ForumThreadResponseUtil forumThreadResponseUtil, FriendService friendService, KFriendsRepository kFriendsRepository, NotificationRepository notificationRepository) {
+    public ProfileController(ProfileService profileService, GrantService grantService, RankService rankService, AccountService accountService, PunishmentService punishmentService, CommentService commentService, ForumThreadService forumThreadService, ForumThreadResponseUtil forumThreadResponseUtil, FriendService friendService, KFriendsRepository kFriendsRepository, NotificationRepository notificationRepository, OnlinePlayerCache onlinePlayerCache) {
         this.profileService = profileService;
         this.grantService = grantService;
         this.rankService = rankService;
@@ -65,6 +69,7 @@ public class ProfileController {
         this.friendService = friendService;
         this.kFriendsRepository = kFriendsRepository;
         this.notificationRepository = notificationRepository;
+        this.onlinePlayerCache = onlinePlayerCache;
     }
 
     @Operation(summary = "Get profile", description = "Retrieves a user's profile with optional web-specific data")
@@ -245,5 +250,13 @@ public class ProfileController {
         });
 
         return ResponseEntity.ok(account.get());
+    }
+
+    @Operation(summary = "Get online players", description = "Retrieves a map of online players and their current servers")
+    @ApiResponse(responseCode = "200", description = "Online players retrieved successfully", 
+                content = @Content(schema = @Schema(implementation = Map.class)))
+    @GetMapping("/online")
+    public ResponseEntity<Map<String, String>> getOnlinePlayers() {
+        return ResponseEntity.ok(onlinePlayerCache.getOnlinePlayers());
     }
 }
