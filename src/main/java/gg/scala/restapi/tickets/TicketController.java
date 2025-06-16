@@ -5,6 +5,7 @@ import gg.scala.restapi.profile.ProfileService;
 import gg.scala.restapi.profile.notification.Notification;
 import gg.scala.restapi.profile.notification.NotificationRepository;
 import gg.scala.restapi.util.UUIDCache;
+import gg.scala.restapi.util.AppLogger;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import io.swagger.v3.oas.annotations.Operation;
@@ -23,6 +24,7 @@ import java.util.UUID;
 @RequestMapping("/forum/ticket")
 @Tag(name = "Ticket Management", description = "APIs for managing support tickets and applications")
 public class TicketController {
+    private final AppLogger logger = AppLogger.getLogger(TicketController.class);
     private final TicketService ticketService;
     private final TicketReplyRepository ticketReplyRepository;
     private final ProfileService profileService;
@@ -45,11 +47,15 @@ public class TicketController {
     @GetMapping("/{id}")
     public ResponseEntity<TicketResponse> getTicket(
             @Parameter(description = "Ticket ID") @PathVariable String id) {
+        logger.info("Ticket requested for ID: %s", id);
+        
         Ticket ticket = ticketService.getById(id);
         if (ticket == null) {
+            logger.warn("Ticket not found for ID: %s", id);
             return ResponseEntity.notFound().build();
         }
 
+        logger.debug("Ticket found for ID: %s", id);
         return ResponseEntity.ok(map(ticket));
     }
 
@@ -101,11 +107,15 @@ public class TicketController {
     @PostMapping
     public ResponseEntity<TicketResponse> createTicket(
             @Parameter(description = "Ticket creation request") @RequestBody Ticket ticket) {
+        logger.info("Ticket creation requested for ID: %s, author: %s", ticket.getId(), ticket.getAuthor());
+        
         if (ticketService.getById(ticket.getId()) != null) {
+            logger.warn("Ticket already exists for ID: %s", ticket.getId());
             return ResponseEntity.badRequest().build();
         }
 
         Ticket savedTicket = ticketService.save(ticket);
+        logger.success("Ticket created successfully for ID: %s", ticket.getId());
         
         // Send email notification to the ticket creator confirming the ticket was created
         try {
@@ -114,8 +124,9 @@ public class TicketController {
                     savedTicket.getTitle(),
                     savedTicket.getAuthor()
             );
+            logger.info("Ticket creation email sent for ID: %s", ticket.getId());
         } catch (Exception e) {
-            System.err.println("Failed to send ticket creation email: " + e.getMessage());
+            logger.error("Failed to send ticket creation email for ID %s: %s", ticket.getId(), e.getMessage());
         }
 
         return ResponseEntity.ok(map(savedTicket));

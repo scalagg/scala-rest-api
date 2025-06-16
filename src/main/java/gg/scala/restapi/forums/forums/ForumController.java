@@ -7,6 +7,7 @@ import gg.scala.restapi.profile.ProfileService;
 import gg.scala.restapi.profile.grant.GrantService;
 import gg.scala.restapi.util.ForumThreadResponseUtil;
 import gg.scala.restapi.util.UUIDCache;
+import gg.scala.restapi.util.AppLogger;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,6 +20,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/forum/forum")
 public class ForumController {
+    private final AppLogger logger = AppLogger.getLogger(ForumController.class);
     private final ForumService forumService;
     private final ForumThreadService forumThreadService;
     private final ForumThreadResponseUtil responseUtil;
@@ -31,17 +33,25 @@ public class ForumController {
 
     @PostMapping
     public ResponseEntity<Forum> createForum(@RequestBody Forum forum) {
+        logger.info("Forum creation requested for ID: %s", forum.getId());
+        
         if (forumService.getForum(forum.getId()) != null) {
+            logger.warn("Forum already exists for ID: %s", forum.getId());
             return ResponseEntity.badRequest().build();
         }
 
-        return ResponseEntity.ok(forumService.save(forum));
+        Forum savedForum = forumService.save(forum);
+        logger.success("Forum created successfully for ID: %s", forum.getId());
+        return ResponseEntity.ok(savedForum);
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<Forum> getForum(@PathVariable String id, @RequestParam(defaultValue = "-1") int page) {
+        logger.info("Forum requested for ID: %s, page: %d", id, page);
+        
         Forum forum = forumService.getForumByNameOrId(id.replace("-", " "));
         if (forum == null) {
+            logger.warn("Forum not found for ID: %s", id);
             return ResponseEntity.notFound().build();
         }
 
@@ -53,20 +63,26 @@ public class ForumController {
                     .toList();
         }
 
+        logger.debug("Forum found for ID: %s with %d threads", id, threads.size());
         return ResponseEntity.ok(new ForumResponse(forum, threads));
     }
 
 
     @PutMapping("/{id}")
     public ResponseEntity<Forum> updateForum(@PathVariable String id, @RequestBody Forum forum) {
+        logger.info("Forum update requested for ID: %s", id);
+        
         Forum forum1 = forumService.getForum(id);
         if (forum1 == null) {
+            logger.warn("Forum not found for update ID: %s", id);
             return ResponseEntity.notFound().build();
         }
 
         forum.setCategory(forum1.getCategory());
 
-        return ResponseEntity.ok(forumService.updateForum(id, forum));
+        Forum updatedForum = forumService.updateForum(id, forum);
+        logger.success("Forum updated successfully for ID: %s", id);
+        return ResponseEntity.ok(updatedForum);
     }
 
 }

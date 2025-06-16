@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import gg.scala.restapi.forums.forums.Forum;
 import gg.scala.restapi.forums.forums.ForumService;
 import gg.scala.restapi.util.ForumThreadResponseUtil;
+import gg.scala.restapi.util.AppLogger;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import io.swagger.v3.oas.annotations.Operation;
@@ -19,6 +20,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 @RequestMapping("/forum/thread")
 @Tag(name = "Forum Thread Management", description = "APIs for managing forum threads and discussions")
 public class ForumThreadController {
+    private final AppLogger logger = AppLogger.getLogger(ForumThreadController.class);
     private final ForumThreadService forumThreadService;
     private final ForumThreadResponseUtil forumThreadResponseUtil;
     private final ForumService forumService;
@@ -37,19 +39,25 @@ public class ForumThreadController {
     @PostMapping
     public ResponseEntity<ForumThread> createThread(
             @Parameter(description = "Thread creation request") @RequestBody ForumThread forumThread) {
+        logger.info("Thread creation requested for ID: %s, forum: %s", forumThread.getId(), forumThread.getForum());
+        
         if (forumThreadService.getThread(forumThread.getId()) != null) {
+            logger.warn("Thread already exists for ID: %s", forumThread.getId());
             return ResponseEntity.badRequest().build();
         }
 
         Forum forum = forumService.getForumByNameOrId(forumThread.getForum());
         if (forum == null) {
+            logger.warn("Forum not found for thread creation: %s", forumThread.getForum());
             return ResponseEntity.badRequest().build();
         }
 
         forum.setThreadAmount(forum.getThreadAmount() + 1);
         forumService.save(forum);
 
-        return ResponseEntity.ok(forumThreadService.save(forumThread));
+        ForumThread savedThread = forumThreadService.save(forumThread);
+        logger.success("Thread created successfully for ID: %s", forumThread.getId());
+        return ResponseEntity.ok(savedThread);
     }
 
     @Operation(summary = "Get thread", description = "Retrieves a specific forum thread")
@@ -60,11 +68,15 @@ public class ForumThreadController {
     @GetMapping("/{id}")
     public ResponseEntity<ForumThread> getThread(
             @Parameter(description = "Thread ID") @PathVariable String id) {
+        logger.info("Thread requested for ID: %s", id);
+        
         ForumThread thread = forumThreadService.getThread(id);
         if (thread == null) {
+            logger.warn("Thread not found for ID: %s", id);
             return ResponseEntity.notFound().build();
         }
 
+        logger.debug("Thread found for ID: %s", id);
         return ResponseEntity.ok(forumThreadResponseUtil.transform(thread));
     }
 
@@ -77,8 +89,11 @@ public class ForumThreadController {
     public ResponseEntity<ForumThread> updateThread(
             @Parameter(description = "Thread ID") @PathVariable String id,
             @Parameter(description = "Thread update request") @RequestBody JsonNode body) {
+        logger.info("Thread update requested for ID: %s", id);
+        
         ForumThread thread = forumThreadService.getThread(id);
         if (thread == null) {
+            logger.warn("Thread not found for update ID: %s", id);
             return ResponseEntity.notFound().build();
         }
 
@@ -110,7 +125,9 @@ public class ForumThreadController {
             thread.setLocked(body.get("locked").asBoolean());
         }
 
-        return ResponseEntity.ok(forumThreadService.save(thread));
+        ForumThread updatedThread = forumThreadService.save(thread);
+        logger.success("Thread updated successfully for ID: %s", id);
+        return ResponseEntity.ok(updatedThread);
     }
 
     @Operation(summary = "Delete thread", description = "Deletes a forum thread")
@@ -121,8 +138,11 @@ public class ForumThreadController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteThread(
             @Parameter(description = "Thread ID") @PathVariable String id) {
+        logger.info("Thread deletion requested for ID: %s", id);
+        
         ForumThread thread = forumThreadService.getThread(id);
         if (thread == null) {
+            logger.warn("Thread not found for deletion ID: %s", id);
             return ResponseEntity.notFound().build();
         }
 
@@ -133,6 +153,7 @@ public class ForumThreadController {
         }
 
         forumThreadService.deleteThread(id);
+        logger.success("Thread deleted successfully for ID: %s", id);
         return ResponseEntity.ok().build();
     }
 }

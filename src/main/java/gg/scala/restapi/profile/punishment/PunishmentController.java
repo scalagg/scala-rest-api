@@ -1,5 +1,6 @@
 package gg.scala.restapi.profile.punishment;
 
+import gg.scala.restapi.util.AppLogger;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import io.swagger.v3.oas.annotations.Operation;
@@ -16,6 +17,7 @@ import java.util.List;
 @RequestMapping("/punishment")
 @Tag(name = "Punishment Management", description = "APIs for managing player punishments and sanctions")
 public class PunishmentController {
+    private final AppLogger logger = AppLogger.getLogger(PunishmentController.class);
     private final PunishmentService punishmentService;
 
     public PunishmentController(PunishmentService punishmentService) {
@@ -30,7 +32,10 @@ public class PunishmentController {
     @GetMapping("/profile/{uuid}")
     public ResponseEntity<List<Punishment>> getPunishments(
             @Parameter(description = "Player UUID") @PathVariable String uuid) {
+        logger.info("Punishments requested for player UUID: %s", uuid);
+        
         List<Punishment> punishments = punishmentService.getPunishments(uuid);
+        logger.debug("Retrieved %d punishments for player UUID: %s", punishments.size(), uuid);
 
         // TODO: now we would map it to like names and colors and such
         return ResponseEntity.ok(punishments);

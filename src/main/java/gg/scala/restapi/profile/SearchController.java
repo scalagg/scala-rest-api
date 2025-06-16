@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
+import gg.scala.restapi.util.AppLogger;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,7 +22,7 @@ import java.util.regex.Pattern;
 @RequestMapping("/search")
 @Tag(name = "Search Management", description = "APIs for searching players and profiles")
 public class SearchController {
-
+    private final AppLogger logger = AppLogger.getLogger(SearchController.class);
     private final ProfileRepository profileRepository;
 
     public SearchController(ProfileRepository profileRepository) {
@@ -37,12 +38,15 @@ public class SearchController {
     public ResponseEntity<List<SearchResponse>> search(
             @Parameter(description = "Search query") @RequestParam("query") String query,
             @Parameter(description = "Maximum number of results to return") @RequestParam(value = "limit", defaultValue = "6") int limit) {
+        logger.info("Player search requested for query: %s, limit: %d", query, limit);
+        
         Pattern pattern = Pattern.compile("^" + Pattern.quote(query), Pattern.CASE_INSENSITIVE);
 
         List<SearchResponse> responses = new ArrayList<>();
         profileRepository.findByNameRegex(pattern.pattern()).stream()
                 .limit(limit).forEach(profile -> responses.add(new SearchResponse(profile.getName(), profile.getUniqueId())));
 
+        logger.debug("Search completed for query '%s' - found %d results", query, responses.size());
         return ResponseEntity.ok(responses);
     }
 }

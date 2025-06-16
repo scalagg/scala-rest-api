@@ -4,6 +4,7 @@ import gg.scala.restapi.profile.ProfileService;
 import gg.scala.restapi.profile.notification.Notification;
 import gg.scala.restapi.profile.notification.NotificationRepository;
 import gg.scala.restapi.util.UUIDCache;
+import gg.scala.restapi.util.AppLogger;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import io.swagger.v3.oas.annotations.Operation;
@@ -21,6 +22,7 @@ import java.util.UUID;
 @RequestMapping("/forum/account/comment")
 @Tag(name = "Comment Management", description = "APIs for managing profile comments and interactions")
 public class CommentController {
+    private final AppLogger logger = AppLogger.getLogger(CommentController.class);
     private final ProfileService profileService;
     private final CommentService commentService;
     private final NotificationRepository notificationRepository;
@@ -39,13 +41,17 @@ public class CommentController {
     @PostMapping
     public ResponseEntity<Void> createComment(
             @Parameter(description = "Comment creation request") @RequestBody Comment comment) {
+        logger.info("Comment creation requested for profile ID: %s, author: %s", comment.getProfileId(), comment.getAuthor());
+        
         if (profileService.getById(comment.getProfileId()).isEmpty()) {
+            logger.warn("Profile not found for comment creation: %s", comment.getProfileId());
             return ResponseEntity.notFound().build();
         }
 
         comment.setUuid(UUID.randomUUID().toString());
         comment.setAddedAt(System.currentTimeMillis());
         commentService.save(comment);
+        logger.success("Comment created successfully for profile ID: %s", comment.getProfileId());
 
         if (!comment.getProfileId().equals(comment.getAuthor())) {
             Notification notification = new Notification(
@@ -57,6 +63,7 @@ public class CommentController {
                     false
             );
             notificationRepository.save(notification);
+            logger.debug("Notification created for profile owner: %s", comment.getProfileId());
         }
 
         return ResponseEntity.ok().build();
@@ -71,12 +78,16 @@ public class CommentController {
     public ResponseEntity<Void> deleteComment(
             @Parameter(description = "Profile UUID") @PathVariable String profileId,
             @Parameter(description = "Comment UUID") @PathVariable String uuid) {
+        logger.info("Comment deletion requested for profile ID: %s, comment UUID: %s", profileId, uuid);
+        
         Comment comment = commentService.getComment(uuid);
         if (comment == null || !comment.getProfileId().equals(profileId)) {
+            logger.warn("Comment not found or profile mismatch for deletion - comment UUID: %s, profile ID: %s", uuid, profileId);
             return ResponseEntity.notFound().build();
         }
 
         commentService.deleteComment(uuid);
+        logger.success("Comment deleted successfully for UUID: %s", uuid);
         return ResponseEntity.ok().build();
     }
 }

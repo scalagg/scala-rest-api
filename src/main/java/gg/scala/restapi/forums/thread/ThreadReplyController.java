@@ -6,6 +6,7 @@ import gg.scala.restapi.profile.notification.NotificationRepository;
 import gg.scala.restapi.rank.Rank;
 import gg.scala.restapi.rank.RankService;
 import gg.scala.restapi.util.UUIDCache;
+import gg.scala.restapi.util.AppLogger;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import io.swagger.v3.oas.annotations.Operation;
@@ -16,6 +17,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -24,6 +26,7 @@ import java.util.UUID;
 @RequestMapping("/forum/replies")
 @Tag(name = "Thread Reply Management", description = "APIs for managing forum thread replies and discussions")
 public class ThreadReplyController {
+    private final AppLogger logger = AppLogger.getLogger(ThreadReplyController.class);
     private final ThreadReplyRepository threadReplyRepository;
     private final ForumThreadService forumThreadService;
     private final RankService rankService;
@@ -44,12 +47,13 @@ public class ThreadReplyController {
     })
     @GetMapping
     public ResponseEntity<Iterable<ThreadReplyResponse>> getReplies() {
-        return ResponseEntity.ok(
-                threadReplyRepository.findAllByParentReplyIdIsNull()
-                        .stream()
-                        .map(this::getThreadReplyResponse)
-                        .toList()
-        );
+        logger.info("All replies requested");
+        List<ThreadReplyResponse> replies = threadReplyRepository.findAllByParentReplyIdIsNull()
+                .stream()
+                .map(this::getThreadReplyResponse)
+                .toList();
+        logger.debug("Retrieved %d top-level replies", replies.size());
+        return ResponseEntity.ok(replies);
     }
 
     @Operation(summary = "Create reply", description = "Creates a new reply to a forum thread")
@@ -61,8 +65,11 @@ public class ThreadReplyController {
     public ResponseEntity<ThreadReply> createReply(
             @Parameter(description = "Thread ID") @PathVariable String threadId,
             @Parameter(description = "Reply creation request") @RequestBody ThreadReply threadReply) {
+        logger.info("Reply creation requested for thread ID: %s, author: %s", threadId, threadReply.getAuthor());
+        
         ForumThread thread = forumThreadService.getThread(threadId);
         if (thread == null) {
+            logger.warn("Thread not found for reply creation: %s", threadId);
             return ResponseEntity.badRequest().build();
         }
 
@@ -77,11 +84,13 @@ public class ThreadReplyController {
                     false
             );
             notificationRepository.save(notification);
+            logger.debug("Notification created for thread author: %s", thread.getAuthor());
         }
 
         if (threadReply.getParentReplyId() != null) {
             Optional<ThreadReply> parentReply = threadReplyRepository.findById(threadReply.getParentReplyId());
             if (parentReply.isEmpty()) {
+                logger.warn("Parent reply not found for ID: %s", threadReply.getParentReplyId());
                 return ResponseEntity.badRequest().build();
             }
 
@@ -95,13 +104,16 @@ public class ThreadReplyController {
                         false
                 );
                 notificationRepository.save(parentNotification);
+                logger.debug("Notification created for parent reply author: %s", parentReply.get().getAuthor());
             }
         }
 
         threadReply.setThread(threadId);
         threadReply.setCreatedAt(System.currentTimeMillis());
 
-        return ResponseEntity.ok(threadReplyRepository.save(threadReply));
+        ThreadReply savedReply = threadReplyRepository.save(threadReply);
+        logger.success("Reply created successfully for thread ID: %s", threadId);
+        return ResponseEntity.ok(savedReply);
     }
 
     @Operation(summary = "Delete reply", description = "Deletes a reply from a forum thread")
@@ -112,12 +124,16 @@ public class ThreadReplyController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteReply(
             @Parameter(description = "Reply ID") @PathVariable String id) {
+        logger.info("Reply deletion requested for ID: %s", id);
+        
         Optional<ThreadReply> threadReply = threadReplyRepository.findById(id);
         if (threadReply.isEmpty()) {
+            logger.warn("Reply not found for deletion ID: %s", id);
             return ResponseEntity.notFound().build();
         }
 
         threadReplyRepository.delete(threadReply.get());
+        logger.success("Reply deleted successfully for ID: %s", id);
         return ResponseEntity.ok().build();
     }
 
@@ -131,7 +147,7 @@ public class ThreadReplyController {
         Rank activeRank = profileService.getActiveRank(threadReply.getAuthor());
 
         if (activeRank == null) {
-            System.out.println("Found null rank for user with UUID: " + threadReply.getAuthor());
+            logger.warn("Found null rank for user with UUID: %s", threadReply.getAuthor());
             return new ThreadReplyResponse(
                     threadReply,
                     "#FFFFFF",

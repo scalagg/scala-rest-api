@@ -1,5 +1,6 @@
 package gg.scala.restapi.profile.notification;
 
+import gg.scala.restapi.util.AppLogger;
 import org.springframework.web.bind.annotation.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -15,7 +16,7 @@ import java.util.List;
 @RequestMapping("/forum/notifications")
 @Tag(name = "Notification Management", description = "APIs for managing user notifications and alerts")
 public class NotificationController {
-
+    private final AppLogger logger = AppLogger.getLogger(NotificationController.class);
     private final NotificationRepository notificationRepository;
 
     public NotificationController(NotificationRepository notificationRepository) {
@@ -30,7 +31,10 @@ public class NotificationController {
     @GetMapping("/{id}")
     public List<Notification> getNotification(
             @Parameter(description = "User UUID") @PathVariable String id) {
-        return notificationRepository.findByTarget(id);
+        logger.info("Notifications requested for user ID: %s", id);
+        List<Notification> notifications = notificationRepository.findByTarget(id);
+        logger.debug("Retrieved %d notifications for user ID: %s", notifications.size(), id);
+        return notifications;
     }
 
     @Operation(summary = "Mark notification as read", description = "Marks a specific notification as read")
@@ -41,10 +45,13 @@ public class NotificationController {
     @PostMapping("/read")
     public void read(
             @Parameter(description = "Notification read request") @RequestBody ReadRequest request) {
+        logger.info("Mark notification as read requested for ID: %s", request.notificationId());
+        
         Notification notification = notificationRepository.findById(request.notificationId())
                 .orElseThrow(() -> new IllegalArgumentException("Notification not found"));
 
         notification.setRead(true);
         notificationRepository.save(notification);
+        logger.success("Notification marked as read for ID: %s", request.notificationId());
     }
 }

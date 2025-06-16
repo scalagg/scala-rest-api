@@ -1,5 +1,6 @@
 package gg.scala.restapi.anticheat;
 
+import gg.scala.restapi.util.AppLogger;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -18,6 +19,7 @@ import java.util.List;
 @RequestMapping("/anticheat")
 @Tag(name = "Anticheat Management", description = "APIs for managing anticheat alerts and violations")
 public class AnticheatController {
+    private final AppLogger logger = AppLogger.getLogger(AnticheatController.class);
     private final AnticheatService anticheatService;
 
     public AnticheatController(AnticheatService anticheatService) {
@@ -32,6 +34,9 @@ public class AnticheatController {
     @GetMapping("/{uuid}")
     public List<AnticheatAlertResult> getAlerts(
             @Parameter(description = "Player UUID") @PathVariable String uuid) {
-        return anticheatService.getAlerts(uuid);
+        logger.info("Anticheat alerts requested for UUID: %s", uuid);
+        List<AnticheatAlertResult> alerts = anticheatService.getAlerts(uuid);
+        logger.debug("Retrieved %d anticheat alerts for UUID: %s", alerts.size(), uuid);
+        return alerts;
     }
 }

@@ -3,6 +3,7 @@ package gg.scala.restapi.account;
 import gg.scala.restapi.profile.ProfileService;
 import gg.scala.restapi.server.ServerType;
 import gg.scala.restapi.util.UUIDCache;
+import gg.scala.restapi.util.AppLogger;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import org.bson.Document;
@@ -30,6 +31,7 @@ import java.util.UUID;
 @RequestMapping("/forum/account")
 @Tag(name = "Account Management", description = "APIs for managing user accounts")
 public class AccountController {
+    private final AppLogger logger = AppLogger.getLogger(AccountController.class);
     private final AccountService accountService;
     private final ProfileService profileService;
     private final JavaMailSender javaMailSender;
@@ -62,27 +64,30 @@ public class AccountController {
     public ResponseEntity<Void> sendRegistration(
             @Parameter(description = "Registration request containing email and token") @RequestBody InitialRegistrationRequest registrationRequest,
             @Parameter(description = "User UUID") @PathVariable String uuid) throws MessagingException, IOException {
+        logger.info("Registration email requested for UUID: %s, email: %s", uuid, registrationRequest.email());
+        
         if (registrationRequest.email() == null || registrationRequest.token() == null) {
+            logger.warn("Invalid registration request - missing email or token for UUID: %s", uuid);
             return ResponseEntity.badRequest().build();
         }
 
         if (profileService.getById(uuid).isEmpty()) {
-            System.out.println("Profile not found");
+            logger.warn("Profile not found for registration: %s", uuid);
             return ResponseEntity.notFound().build();
         }
 
         if (accountService.getById(uuid).isPresent()) {
-            System.out.println("Account already exists");
+            logger.warn("Account already exists for UUID: %s", uuid);
             return ResponseEntity.badRequest().build();
         }
 
         if (accountService.getByEmail(registrationRequest.email()).isPresent()) {
-            System.out.println("Email already exists");
+            logger.warn("Email already exists: %s", registrationRequest.email());
             return ResponseEntity.status(401).build();
         }
 
         if (accountService.getByToken(registrationRequest.token()).isPresent()) {
-            System.out.println("Token already exists");
+            logger.warn("Token already exists: %s", registrationRequest.token());
             return ResponseEntity.badRequest().build();
         }
 
@@ -141,6 +146,7 @@ public class AccountController {
         }
 
         account.setPassword(passwordEncoder.encode(registrationRequest.password()));
+     
         account.setToken(null);
         String username = UUIDCache.getName(UUID.fromString(account.getUuid()));
         account.setUsername(username);
@@ -159,29 +165,36 @@ public class AccountController {
     public ResponseEntity<Account> login(
             @Parameter(description = "Username or email") @PathVariable String username,
             @Parameter(description = "User password") @RequestParam(required = false) String password) {
+        logger.info("Login attempt for username/email: %s", username);
+        
         if (username.contains("@")) {
             Optional<Account> account = accountService.getByEmail(username);
             if (account.isEmpty()) {
+                logger.warn("Login failed - email not found: %s", username);
                 return ResponseEntity.notFound().build();
             }
 
             if (password != null && !passwordEncoder.matches(password, account.get().getPassword())) {
+                logger.warn("Login failed - invalid password for email: %s", username);
                 return ResponseEntity.badRequest().build();
             }
 
+            logger.success("Login successful for email: %s", username);
             return ResponseEntity.ok(account.get());
         }
 
         Optional<Account> account  = accountService.getById(UUIDCache.getUuid(username).toString());
         if (account.isEmpty()) {
-            System.out.println("Account not found for " + username);
+            logger.warn("Login failed - account not found for username: %s", username);
             return ResponseEntity.notFound().build();
         }
 
         if (password != null && !passwordEncoder.matches(password, account.get().getPassword())) {
+            logger.warn("Login failed - invalid password for username: %s", username);
             return ResponseEntity.badRequest().build();
         }
 
+        logger.success("Login successful for username: %s", username);
         return ResponseEntity.ok(account.get());
     }
 

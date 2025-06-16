@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
+import gg.scala.restapi.util.AppLogger;
 
 import java.util.List;
 
@@ -19,6 +20,7 @@ import java.util.List;
 @RequestMapping("/grant")
 @Tag(name = "Grant Management", description = "APIs for managing rank grants and permissions")
 public class GrantController {
+    private final AppLogger logger = AppLogger.getLogger(GrantController.class);
     private final GrantService grantService;
 
     public GrantController(GrantService grantService) {
@@ -33,7 +35,10 @@ public class GrantController {
     @GetMapping("/profile/{uuid}")
     public ResponseEntity<List<Grant>> getGrants(
             @Parameter(description = "Player UUID") @PathVariable String uuid) {
+        logger.info("Grants requested for player UUID: %s", uuid);
+        
         List<Grant> grants = grantService.getGrants(uuid);
+        logger.debug("Retrieved %d grants for player UUID: %s", grants.size(), uuid);
 
         // TODO: map to uuid cache and such
         return ResponseEntity.ok(grants);

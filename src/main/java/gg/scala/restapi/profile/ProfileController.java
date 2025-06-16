@@ -22,6 +22,7 @@ import gg.scala.restapi.rank.RankService;
 import gg.scala.restapi.util.ForumThreadResponseUtil;
 import gg.scala.restapi.util.UUIDCache;
 import gg.scala.restapi.cache.OnlinePlayerCache;
+import gg.scala.restapi.util.AppLogger;
 import org.bson.Document;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -45,6 +46,7 @@ import java.util.HashMap;
 @RequestMapping("/profile")
 @Tag(name = "Profile Management", description = "APIs for managing user profiles")
 public class ProfileController {
+    private final AppLogger logger = AppLogger.getLogger(ProfileController.class);
     private final ProfileService profileService;
     private final GrantService grantService;
     private final RankService rankService;
@@ -80,8 +82,11 @@ public class ProfileController {
     })
     @GetMapping("/{uuid}")
     public ResponseEntity<ProfileResponse> getProfile(@PathVariable String uuid, @RequestParam(name = "webResolved", defaultValue = "false") boolean web, @RequestParam(name = "includePermissions", defaultValue = "false") boolean perms) {
+        logger.info("Profile requested for UUID: %s (web: %s, perms: %s)", uuid, web, perms);
+        
         Optional<Profile> profile = profileService.getById(uuid);
         if (profile.isEmpty()) {
+            logger.warn("Profile not found for UUID: %s", uuid);
             Profile notFoundProfile = new Profile();
             notFoundProfile.setUniqueId(uuid);
             notFoundProfile.setName("USER NOT FOUND");
@@ -186,8 +191,11 @@ public class ProfileController {
     })
     @GetMapping("/connections/{uuid}")
     public ResponseEntity<Map<String, String>> getPublicConnections(@PathVariable String uuid) {
+        logger.info("Public connections requested for UUID: %s", uuid);
+        
         Optional<KFriendsPlayer> player = kFriendsRepository.findById(uuid);
         if (player.isEmpty()) {
+            logger.warn("User not found for connections request: %s", uuid);
             // Return empty map if user not found
             // return a error with a msg
             return ResponseEntity.status(404).body(Map.of("error", "User not found / No connections found"));
@@ -212,8 +220,11 @@ public class ProfileController {
     })
     @PutMapping("/settings/{uuid}")
     public ResponseEntity<Account> updateSettings(@PathVariable String uuid, @RequestBody JsonNode settings) {
+        logger.info("Settings update requested for UUID: %s", uuid);
+        
         Optional<KFriendsPlayer> player = kFriendsRepository.findById(uuid);
         if (player.isEmpty()) {
+            logger.warn("User not found for settings update: %s", uuid);
             return ResponseEntity.notFound().build();
         }
 
@@ -284,6 +295,25 @@ public class ProfileController {
         });
 
         return ResponseEntity.ok(account.get());
+    }
+
+    @GetMapping("/{uuid}/isStaff")
+    public ResponseEntity<Map<String, Boolean>> isStaff(@PathVariable String uuid) {
+        boolean staff = isUserStaff(uuid);
+        return ResponseEntity.ok(Map.of("isStaff", staff));
+    }
+    private boolean isUserStaff(String uuid) {
+        List<Grant> activeGrants = grantService.getAllActiveGrants(uuid);
+        for (Grant grant : activeGrants) {
+            Optional<Rank> rankOpt = rankService.getById(grant.getRankId());
+            if (rankOpt.isPresent()) {
+                Rank rank = rankOpt.get();
+                if (rank.getPermissions().contains("core.staff")) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     @Operation(summary = "Get online players", description = "Retrieves a map of online players and their current servers")
