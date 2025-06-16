@@ -86,11 +86,16 @@ public class AccountController {
             return ResponseEntity.badRequest().build();
         }
 
+        String username = UUIDCache.getName(UUID.fromString(uuid));
         Account account = new Account(
                 uuid,
                 registrationRequest.email(),
-                 null,
-                 registrationRequest.token(), new Document(), new ArrayList<>());
+                null,
+                registrationRequest.token(),
+                new Document(),
+                new ArrayList<>(),
+                username
+        );
         accountService.save(account);
 
         // TODO; send email
@@ -131,6 +136,8 @@ public class AccountController {
 
         account.setPassword(passwordEncoder.encode(registrationRequest.password()));
         account.setToken(null);
+        String username = UUIDCache.getName(UUID.fromString(account.getUuid()));
+        account.setUsername(username);
         accountService.save(account);
 
         return ResponseEntity.ok().build();

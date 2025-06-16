@@ -81,7 +81,14 @@ public class ProfileController {
     public ResponseEntity<ProfileResponse> getProfile(@PathVariable String uuid, @RequestParam(name = "webResolved", defaultValue = "false") boolean web, @RequestParam(name = "includePermissions", defaultValue = "false") boolean perms) {
         Optional<Profile> profile = profileService.getById(uuid);
         if (profile.isEmpty()) {
-            return ResponseEntity.notFound().build();
+            Profile notFoundProfile = new Profile();
+            notFoundProfile.setUniqueId(uuid);
+            notFoundProfile.setName("USER NOT FOUND");
+            ProfileResponse notFoundResponse = new ProfileResponse(
+                notFoundProfile,
+                null, null, null, null, null, null, null, null, null, null, null
+            );
+            return ResponseEntity.status(404).body(notFoundResponse);
         }
 
         List<Grant> activeGrants = null;

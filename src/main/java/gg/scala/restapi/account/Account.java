@@ -22,4 +22,5 @@ public class Account {
     private String token;
     private org.bson.Document settings;
     private List<String> badges;
+    private String username;
 }
