@@ -39,6 +39,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.HashMap;
 
 @RestController
 @RequestMapping("/profile")
@@ -176,6 +177,32 @@ public class ProfileController {
         }
 
         return ResponseEntity.ok(new ProfileResponse(profile.get(), activeGrants, activeBan, activeMute, rank, webSettings, effectivePermissions, comments, threads, badges, friends, notifi));
+    }
+
+    @Operation(summary = "Get public connections", description = "Retrieves a user's public social media connections")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Connections retrieved successfully"),
+        @ApiResponse(responseCode = "404", description = "User not found")
+    })
+    @GetMapping("/connections/{uuid}")
+    public ResponseEntity<Map<String, String>> getPublicConnections(@PathVariable String uuid) {
+        Optional<KFriendsPlayer> player = kFriendsRepository.findById(uuid);
+        if (player.isEmpty()) {
+            // Return empty map if user not found
+            // return a error with a msg
+            return ResponseEntity.status(404).body(Map.of("error", "User not found / No connections found"));
+        }
+
+        // Convert MongoDB Document to Map<String, String>
+        Document socialMedia = player.get().getSocialMedia();
+        Map<String, String> connections = new HashMap<>();
+        socialMedia.forEach((key, value) -> {
+            if (value != null) {
+                connections.put(key.toString(), value.toString());
+            }
+        });
+
+        return ResponseEntity.ok(connections);
     }
 
     @Operation(summary = "Update settings", description = "Updates a user's social media settings")

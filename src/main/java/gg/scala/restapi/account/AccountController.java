@@ -116,6 +116,12 @@ public class AccountController {
         return ResponseEntity.ok().build();
     }
 
+    @GetMapping("/uuid/{uuid}")
+    public ResponseEntity<Account> getAccountByUuid(@PathVariable String uuid) {
+        Optional<Account> account = accountService.getById(uuid);
+        return ResponseEntity.ok(account.orElse(new Account(uuid, null, null, null, new Document(), new ArrayList<>(), null)));
+    }
+
     @Operation(summary = "Register user", description = "Completes the registration process for a user")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Registration completed successfully"),
