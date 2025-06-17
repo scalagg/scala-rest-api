@@ -3,14 +3,17 @@ package gg.scala.restapi.rank;
 import gg.scala.restapi.profile.grant.GrantService;
 import gg.scala.restapi.util.UUIDCache;
 import gg.scala.restapi.util.AppLogger;
+import gg.scala.restapi.util.ColorUtil;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
+import java.util.Optional;
 
 @RestController
 public class RankController {
@@ -21,6 +24,71 @@ public class RankController {
     public RankController(RankService rankService, GrantService grantService) {
         this.rankService = rankService;
         this.grantService = grantService;
+    }
+
+    @GetMapping("/rank/{uuid}")
+    public ResponseEntity<Rank> getRank(@PathVariable UUID uuid) {
+        logger.info("Rank requested for UUID: %s", uuid);
+        
+        try {
+            Optional<Rank> rankOpt = rankService.getById(uuid.toString());
+            if (rankOpt.isPresent()) {
+                Rank rank = rankOpt.get();
+                logger.debug("Rank found: %s (name: %s)", uuid, rank.getName());
+                return ResponseEntity.ok(rank);
+            } else {
+                logger.warn("Rank not found for UUID: %s", uuid);
+                return ResponseEntity.notFound().build();
+            }
+        } catch (Exception e) {
+            logger.error("Error retrieving rank for UUID %s: %s", uuid, e.getMessage());
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    @GetMapping("/rank/color/{uuid}")
+    public ResponseEntity<RankColorResponse> getRankColor(@PathVariable UUID uuid) {
+        logger.info("Rank color requested for UUID: %s", uuid);
+        
+        try {
+            Optional<Rank> rankOpt = rankService.getById(uuid.toString());
+            if (rankOpt.isPresent()) {
+                Rank rank = rankOpt.get();
+                String color = rank.getColor();
+                // Convert Minecraft color code to hex if needed
+                if (color != null && (color.startsWith("§") || color.startsWith("&"))) {
+                    color = ColorUtil.getHexFromMinecraft(color.replace('&', '§'));
+                }
+                logger.debug("Rank color found: %s (color: %s)", uuid, color);
+                return ResponseEntity.ok(new RankColorResponse(color));
+            } else {
+                logger.warn("Rank not found for UUID: %s", uuid);
+                return ResponseEntity.notFound().build();
+            }
+        } catch (Exception e) {
+            logger.error("Error retrieving rank color for UUID %s: %s", uuid, e.getMessage());
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    @GetMapping("/rank/name/{name}")
+    public ResponseEntity<Rank> getRankByName(@PathVariable String name) {
+        logger.info("Rank requested by name: %s", name);
+        
+        try {
+            Optional<Rank> rankOpt = rankService.getByName(name);
+            if (rankOpt.isPresent()) {
+                Rank rank = rankOpt.get();
+                logger.debug("Rank found by name: %s (UUID: %s)", name, rank.getUuid());
+                return ResponseEntity.ok(rank);
+            } else {
+                logger.warn("Rank not found by name: %s", name);
+                return ResponseEntity.notFound().build();
+            }
+        } catch (Exception e) {
+            logger.error("Error retrieving rank by name %s: %s", name, e.getMessage());
+            return ResponseEntity.internalServerError().build();
+        }
     }
 
     @GetMapping("/staffList")
@@ -46,5 +114,17 @@ public class RankController {
 
         logger.debug("Staff list generated with %d ranks and %d total staff members", ranks.size(), processed.size());
         return ResponseEntity.ok(ranks);
+    }
+
+    public static class RankColorResponse {
+        private final String color;
+
+        public RankColorResponse(String color) {
+            this.color = color;
+        }
+
+        public String getColor() {
+            return color;
+        }
     }
 }

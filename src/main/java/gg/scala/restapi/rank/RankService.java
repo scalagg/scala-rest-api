@@ -21,6 +21,10 @@ public class RankService {
         return rankRepository.findById(id);
     }
 
+    public Optional<Rank> getByName(String name) {
+        return rankRepository.findByName(name);
+    }
+
     public List<Rank> getAll() {
         return rankRepository.findAll();
     }
