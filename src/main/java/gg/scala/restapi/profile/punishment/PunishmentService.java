@@ -22,4 +22,8 @@ public class PunishmentService {
                 .filter(punishment -> punishment.getRemovedAt() == -1)
                 .toList();
     }
+
+    public Punishment getPunishmentById(String punishmentId) {
+        return punishmentRepository.findByUuid(punishmentId).orElse(null);
+    }
 }

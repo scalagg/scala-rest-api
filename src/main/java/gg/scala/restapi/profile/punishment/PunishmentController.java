@@ -40,4 +40,24 @@ public class PunishmentController {
         // TODO: now we would map it to like names and colors and such
         return ResponseEntity.ok(punishments);
     }
+
+    @Operation(summary = "Get punishment by ID", description = "Retrieves a specific punishment by its ID")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Punishment found", content = @Content(schema = @Schema(implementation = Punishment.class))),
+        @ApiResponse(responseCode = "404", description = "Punishment not found")
+    })
+    @GetMapping("/{punishmentId}")
+    public ResponseEntity<Punishment> getPunishmentById(
+            @Parameter(description = "Punishment ID") @PathVariable String punishmentId) {
+        logger.info("Punishment lookup requested for ID: %s", punishmentId);
+        
+        Punishment punishment = punishmentService.getPunishmentById(punishmentId);
+        if (punishment == null) {
+            logger.warn("Punishment not found for ID: %s", punishmentId);
+            return ResponseEntity.notFound().build();
+        }
+
+        logger.debug("Retrieved punishment for ID: %s", punishmentId);
+        return ResponseEntity.ok(punishment);
+    }
 }
