@@ -40,11 +40,13 @@ public class SearchController {
             @Parameter(description = "Maximum number of results to return") @RequestParam(value = "limit", defaultValue = "6") int limit) {
         logger.info("Player search requested for query: %s, limit: %d", query, limit);
         
+        int safeLimit = Math.min(Math.max(limit, 1), 50);
+
         Pattern pattern = Pattern.compile("^" + Pattern.quote(query), Pattern.CASE_INSENSITIVE);
 
         List<SearchResponse> responses = new ArrayList<>();
         profileRepository.findByNameRegex(pattern.pattern()).stream()
-                .limit(limit).forEach(profile -> responses.add(new SearchResponse(profile.getName(), profile.getUniqueId())));
+                .limit(safeLimit).forEach(profile -> responses.add(new SearchResponse(profile.getName(), profile.getUniqueId())));
 
         logger.debug("Search completed for query '%s' - found %d results", query, responses.size());
         return ResponseEntity.ok(responses);
