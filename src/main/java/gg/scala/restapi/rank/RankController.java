@@ -14,6 +14,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 import java.util.Optional;
+import java.util.Set;
 
 @RestController
 public class RankController {
@@ -113,6 +114,43 @@ public class RankController {
         });
 
         logger.debug("Staff list generated with %d ranks and %d total staff members", ranks.size(), processed.size());
+        return ResponseEntity.ok(ranks);
+    }
+
+    @GetMapping("/rank/{uuid}/members")
+    public ResponseEntity<List<StaffRank.StaffRankMember>> getRankMembers(@PathVariable UUID uuid) {
+        if (rankService.getById(uuid.toString()).isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        List<StaffRank.StaffRankMember> members = grantService.getAllActiveGrantsByRankId(uuid.toString())
+                .stream()
+                .map(grant -> new StaffRank.StaffRankMember(
+                        UUIDCache.getName(UUID.fromString(grant.getTarget())), grant.getTarget()))
+                .toList();
+        return ResponseEntity.ok(members);
+    }
+
+    @GetMapping("/rankGroups/{group}")
+    public ResponseEntity<List<StaffRank>> getRankGroup(@PathVariable String group) {
+        Set<String> names;
+        if (group.equalsIgnoreCase("creators")) {
+            names = Set.of("owner", "partner", "partners", "famous", "media", "creator", "youtube", "youtuber", "twitch");
+        } else if (group.equalsIgnoreCase("hall-of-fame")) {
+            names = Set.of("hof", "halloffame", "hall-of-fame", "hall of fame");
+        } else {
+            return ResponseEntity.notFound().build();
+        }
+
+        List<StaffRank> ranks = rankService.getAll().stream()
+                .filter(rank -> names.contains(rank.getName().toLowerCase()))
+                .sorted(Comparator.comparingInt(Rank::getWeight).reversed())
+                .map(rank -> new StaffRank(
+                        rank.getUuid(), rank.getName(), rank.getDisplayName(), rank.getWeight(), rank.getColor(),
+                        grantService.getAllActiveGrantsByRankId(rank.getUuid()).stream()
+                                .map(grant -> new StaffRank.StaffRankMember(
+                                        UUIDCache.getName(UUID.fromString(grant.getTarget())), grant.getTarget()))
+                                .toList()))
+                .toList();
         return ResponseEntity.ok(ranks);
     }
 

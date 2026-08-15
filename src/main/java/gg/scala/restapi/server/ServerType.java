@@ -11,10 +11,15 @@ public enum ServerType {
             "Scala",
             "https://scala.gg"
     ),
+    PVPLEAGUE(
+            "PvPLeague",
+            "https://pvpleague.club"
+    ),
     POTPVP(
             "PotPvP",
             "https://potpvp.com"
     );
+
 
     private final String name;
     private final String url;

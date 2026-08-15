@@ -23,13 +23,27 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-        String requestApiKey = request.getHeader("Authorization");
-        System.out.println("ApiKeyAuthFilter: Path=" + request.getRequestURI() + ", ProvidedKey=" + requestApiKey + ", ExpectedKey=" + apiKey);
-
+        String rawAuthHeader = request.getHeader("Authorization");
+        
+        // Handle duplicate headers (some clients send the same header twice, causing comma concatenation)
+        String requestApiKey = null;
+        if (rawAuthHeader != null) {
+            // If multiple values were concatenated, take the first one
+            requestApiKey = rawAuthHeader.split(",")[0].trim();
+        }
+        
         if (requestApiKey == null || !requestApiKey.equals(apiKey)) {
+            System.out.println("ApiKeyAuthFilter: FAILED - Path=" + request.getRequestURI() + 
+                ", RawHeader='" + rawAuthHeader + "'" +
+                ", ExtractedKey='" + requestApiKey + "'" + 
+                ", ExpectedKey='" + apiKey + "'");
             response.setStatus(HttpStatus.UNAUTHORIZED.value());
+            response.getWriter().write("{\"error\": \"Invalid or missing API key\"}");
+            response.setContentType("application/json");
             return;
         }
+
+        System.out.println("ApiKeyAuthFilter: SUCCESS - Path=" + request.getRequestURI());
 
         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                 "API_USER", null,

@@ -1,17 +1,17 @@
 package gg.scala.restapi.account;
 
+import com.resend.Resend;
+import com.resend.core.exception.ResendException;
+import com.resend.services.emails.model.CreateEmailOptions;
+import com.resend.services.emails.model.CreateEmailResponse;
 import gg.scala.restapi.profile.ProfileService;
 import gg.scala.restapi.server.ServerType;
 import gg.scala.restapi.util.UUIDCache;
 import gg.scala.restapi.util.AppLogger;
-import jakarta.mail.MessagingException;
-import jakarta.mail.internet.MimeMessage;
 import org.bson.Document;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ResponseEntity;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,6 +27,9 @@ import java.util.ArrayList;
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * @author Luna
+ */
 @RestController
 @RequestMapping("/forum/account")
 @Tag(name = "Account Management", description = "APIs for managing user accounts")
@@ -34,11 +37,14 @@ public class AccountController {
     private final AppLogger logger = AppLogger.getLogger(AccountController.class);
     private final AccountService accountService;
     private final ProfileService profileService;
-    private final JavaMailSender javaMailSender;
+    private final Resend resend;
     private final PasswordEncoder passwordEncoder;
 
     @Value("${server.type}")
     private ServerType serverType;
+
+    @Value("${resend.from-email}")
+    private String fromEmail;
 
     @Value("classpath:email-register.html")
     private Resource emailRegister;
@@ -46,10 +52,10 @@ public class AccountController {
     @Value("classpath:email-reset.html")
     private Resource emailReset;
 
-    public AccountController(AccountService accountService, ProfileService profileService, JavaMailSender javaMailSender, PasswordEncoder passwordEncoder) {
+    public AccountController(AccountService accountService, ProfileService profileService, Resend resend, PasswordEncoder passwordEncoder) {
         this.accountService = accountService;
         this.profileService = profileService;
-        this.javaMailSender = javaMailSender;
+        this.resend = resend;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -63,7 +69,7 @@ public class AccountController {
     @PostMapping("/sendRegistration/{uuid}")
     public ResponseEntity<Void> sendRegistration(
             @Parameter(description = "Registration request containing email and token") @RequestBody InitialRegistrationRequest registrationRequest,
-            @Parameter(description = "User UUID") @PathVariable String uuid) throws MessagingException, IOException {
+            @Parameter(description = "User UUID") @PathVariable String uuid) throws IOException, ResendException {
         logger.info("Registration email requested for UUID: %s, email: %s", uuid, registrationRequest.email());
         
         if (registrationRequest.email() == null || registrationRequest.token() == null) {
@@ -103,21 +109,21 @@ public class AccountController {
         );
         accountService.save(account);
 
-        // TODO; send email
-        MimeMessage message = javaMailSender.createMimeMessage();
-        MimeMessageHelper helper = new MimeMessageHelper(message);
-        helper.setFrom("no-reply@scala.gg");
-        helper.setTo(registrationRequest.email());
-        helper.setSubject("Confirm your %s Account".formatted(serverType.getName()));
+        String htmlContent = new String(emailRegister.getInputStream().readAllBytes())
+                .replace("{{siteName}}", serverType.getName())
+                .replace("{{serverName}}", serverType.getName())
+                .replace("{{websiteUrl}}", serverType.getUrl())
+                .replace("{{confirmationUrl}}", serverType.getUrl() + "/register?token=" + registrationRequest.token());
 
-        helper.setText(
-                new String(emailRegister.getInputStream().readAllBytes())
-                        .replace("{{siteName}}", serverType.getName())
-                        .replace("{{serverName}}", serverType.getName())
-                        .replace("{{websiteUrl}}", serverType.getUrl())
-                        .replace("{{confirmationUrl}}", serverType.getUrl() + "/register?token=" + registrationRequest.token()), true);
+        CreateEmailOptions params = CreateEmailOptions.builder()
+                .from(fromEmail)
+                .to(registrationRequest.email())
+                .subject("Confirm your %s Account".formatted(serverType.getName()))
+                .html(htmlContent)
+                .build();
 
-        javaMailSender.send(message);
+        CreateEmailResponse response = resend.emails().send(params);
+        logger.info("Registration email sent to: %s (ID: %s)", registrationRequest.email(), response.getId());
         return ResponseEntity.ok().build();
     }
 
@@ -241,7 +247,7 @@ public class AccountController {
     })
     @PostMapping("/sendResetPassword")
     public ResponseEntity<Void> sendResetPassword(
-            @Parameter(description = "Password reset request containing email") @RequestBody ResetPasswordRequest resetPasswordRequest) throws MessagingException, IOException {
+            @Parameter(description = "Password reset request containing email") @RequestBody ResetPasswordRequest resetPasswordRequest) throws IOException, ResendException {
         Optional<Account> account = accountService.getByEmail(resetPasswordRequest.email());
         if (account.isEmpty()) {
             return ResponseEntity.notFound().build();
@@ -250,20 +256,21 @@ public class AccountController {
         account.get().setToken(UUID.randomUUID().toString().substring(0, 8));
         accountService.save(account.get());
 
-        MimeMessage message = javaMailSender.createMimeMessage();
-        MimeMessageHelper helper = new MimeMessageHelper(message);
-        helper.setFrom("no-reply@scala.gg");
-        helper.setTo(resetPasswordRequest.email());
-        helper.setSubject("Password Reset");
+        String htmlContent = new String(emailReset.getInputStream().readAllBytes())
+                .replace("{{siteName}}", serverType.getName())
+                .replace("{{serverName}}", serverType.getName())
+                .replace("{{websiteUrl}}", serverType.getUrl())
+                .replace("{{resetPasswordUrl}}", serverType.getUrl() + "/reset-password?token=" + account.get().getToken());
 
-        helper.setText(
-                new String(emailReset.getInputStream().readAllBytes())
-                        .replace("{{siteName}}", serverType.getName())
-                        .replace("{{serverName}}", serverType.getName())
-                        .replace("{{websiteUrl}}", serverType.getUrl())
-                        .replace("{{resetPasswordUrl}}", serverType.getUrl() + "/reset-password?token=" + account.get().getToken()), true);
+        CreateEmailOptions params = CreateEmailOptions.builder()
+                .from(fromEmail)
+                .to(resetPasswordRequest.email())
+                .subject("Password Reset")
+                .html(htmlContent)
+                .build();
 
-        javaMailSender.send(message);
+        CreateEmailResponse response = resend.emails().send(params);
+        logger.info("Password reset email sent to: %s (ID: %s)", resetPasswordRequest.email(), response.getId());
 
         return ResponseEntity.ok().build();
     }

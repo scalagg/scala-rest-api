@@ -8,6 +8,7 @@ import java.util.List;
 @Repository
 public interface ThreadReplyRepository extends MongoRepository<ThreadReply, String> {
     List<ThreadReply> findAllByThread(String thread);
+    List<ThreadReply> findAllByThreadAndParentReplyIdIsNull(String thread);
     List<ThreadReply> findAllByParentReplyId(String parentReplyId);
     List<ThreadReply> findAllByParentReplyIdIsNull();
 }

@@ -85,4 +85,14 @@ public class ForumController {
         return ResponseEntity.ok(updatedForum);
     }
 
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteForum(@PathVariable String id) {
+        Forum forum = forumService.getForum(id);
+        if (forum == null) {
+            return ResponseEntity.notFound().build();
+        }
+        forumService.delete(forum);
+        return ResponseEntity.ok().build();
+    }
+
 }

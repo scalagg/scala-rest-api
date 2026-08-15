@@ -168,7 +168,12 @@ public class ProfileController {
                         continue;
                     }
 
-                    Rank grantedRank = rankService.getById(grant.getRankId()).get();
+                    Optional<Rank> grantedRankOpt = rankService.getById(grant.getRankId());
+                    if (grantedRankOpt.isEmpty()) {
+                        logger.warn("Rank not found for grant rankId: %s, skipping", grant.getRankId());
+                        continue;
+                    }
+                    Rank grantedRank = grantedRankOpt.get();
                     effectivePermissions.addAll(grantedRank.getPermissions());
 
                     // TODO: Temp solution we should make something recursive for all the kids

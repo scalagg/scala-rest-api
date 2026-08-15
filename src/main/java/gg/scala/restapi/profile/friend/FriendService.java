@@ -15,4 +15,16 @@ public class FriendService {
     public List<Friend> findAllForPlayer(String player) {
         return friendRepository.findAllByPlayer1OrPlayer2(player, player);
     }
+
+    public Friend save(Friend friend) {
+        return friendRepository.save(friend);
+    }
+
+    public Friend findById(String id) {
+        return friendRepository.findById(id).orElse(null);
+    }
+
+    public void delete(Friend friend) {
+        friendRepository.delete(friend);
+    }
 }

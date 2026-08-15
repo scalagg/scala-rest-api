@@ -46,14 +46,29 @@ public class ThreadReplyController {
         @ApiResponse(responseCode = "200", description = "Replies retrieved successfully", content = @Content(schema = @Schema(implementation = ThreadReplyResponse.class)))
     })
     @GetMapping
-    public ResponseEntity<Iterable<ThreadReplyResponse>> getReplies() {
+    public ResponseEntity<Iterable<ThreadReplyResponse>> getReplies(@RequestParam(required = false) String threadId) {
         logger.info("All replies requested");
-        List<ThreadReplyResponse> replies = threadReplyRepository.findAllByParentReplyIdIsNull()
+        List<ThreadReply> source = threadId == null
+                ? threadReplyRepository.findAllByParentReplyIdIsNull()
+                : threadReplyRepository.findAllByThreadAndParentReplyIdIsNull(threadId);
+        List<ThreadReplyResponse> replies = source
                 .stream()
                 .map(this::getThreadReplyResponse)
                 .toList();
         logger.debug("Retrieved %d top-level replies", replies.size());
         return ResponseEntity.ok(replies);
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<ThreadReply> updateReply(@PathVariable String id, @RequestBody ThreadReply update) {
+        Optional<ThreadReply> existing = threadReplyRepository.findById(id);
+        if (existing.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        ThreadReply reply = existing.get();
+        if (update.getComment() != null) reply.setComment(update.getComment());
+        reply.setLastEditedAt(System.currentTimeMillis());
+        return ResponseEntity.ok(threadReplyRepository.save(reply));
     }
 
     @Operation(summary = "Create reply", description = "Creates a new reply to a forum thread")
