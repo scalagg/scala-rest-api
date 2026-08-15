@@ -143,6 +143,7 @@ public class RankController {
 
         List<StaffRank> ranks = rankService.getAll().stream()
                 .filter(rank -> names.contains(rank.getName().toLowerCase()))
+                .filter(rank -> !group.equalsIgnoreCase("creators") || rank.getPermissions() == null || !rank.getPermissions().contains("core.staff"))
                 .sorted(Comparator.comparingInt(Rank::getWeight).reversed())
                 .map(rank -> new StaffRank(
                         rank.getUuid(), rank.getName(), rank.getDisplayName(), rank.getWeight(), rank.getColor(),
