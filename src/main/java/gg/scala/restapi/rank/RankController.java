@@ -27,6 +27,11 @@ public class RankController {
         this.grantService = grantService;
     }
 
+    @GetMapping("/ranks")
+    public ResponseEntity<List<Rank>> getRanks() {
+        return ResponseEntity.ok(rankService.getAll().stream().sorted(Comparator.comparingInt(Rank::getWeight).reversed()).toList());
+    }
+
     @GetMapping("/rank/{uuid}")
     public ResponseEntity<Rank> getRank(@PathVariable UUID uuid) {
         logger.info("Rank requested for UUID: %s", uuid);
