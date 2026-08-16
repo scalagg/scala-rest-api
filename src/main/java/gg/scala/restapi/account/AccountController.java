@@ -8,6 +8,7 @@ import gg.scala.restapi.profile.ProfileService;
 import gg.scala.restapi.server.ServerType;
 import gg.scala.restapi.util.UUIDCache;
 import gg.scala.restapi.util.AppLogger;
+import gg.scala.restapi.webconfig.ProfileBannerRepository;
 import org.bson.Document;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
@@ -23,6 +24,8 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Optional;
 import java.util.UUID;
@@ -39,6 +42,8 @@ public class AccountController {
     private final ProfileService profileService;
     private final Resend resend;
     private final PasswordEncoder passwordEncoder;
+    private final TotpService totpService;
+    private final ProfileBannerRepository profileBannerRepository;
 
     @Value("${server.type}")
     private ServerType serverType;
@@ -52,11 +57,13 @@ public class AccountController {
     @Value("classpath:email-reset.html")
     private Resource emailReset;
 
-    public AccountController(AccountService accountService, ProfileService profileService, Resend resend, PasswordEncoder passwordEncoder) {
+    public AccountController(AccountService accountService, ProfileService profileService, Resend resend, PasswordEncoder passwordEncoder, TotpService totpService, ProfileBannerRepository profileBannerRepository) {
         this.accountService = accountService;
         this.profileService = profileService;
         this.resend = resend;
         this.passwordEncoder = passwordEncoder;
+        this.totpService = totpService;
+        this.profileBannerRepository = profileBannerRepository;
     }
 
     @Operation(summary = "Send registration email", description = "Sends a registration confirmation email to the user")
@@ -105,7 +112,10 @@ public class AccountController {
                 registrationRequest.token(),
                 new Document(),
                 new ArrayList<>(),
-                username
+                username,
+                null,
+                false,
+                null
         );
         accountService.save(account);
 
@@ -130,7 +140,7 @@ public class AccountController {
     @GetMapping("/uuid/{uuid}")
     public ResponseEntity<Account> getAccountByUuid(@PathVariable String uuid) {
         Optional<Account> account = accountService.getById(uuid);
-        return ResponseEntity.ok(account.orElse(new Account(uuid, null, null, null, new Document(), new ArrayList<>(), null)));
+        return ResponseEntity.ok(account.orElse(new Account(uuid, null, null, null, new Document(), new ArrayList<>(), null, null, false, null)));
     }
 
     @Operation(summary = "Register user", description = "Completes the registration process for a user")
@@ -335,6 +345,104 @@ public class AccountController {
         account.get().getBadges().remove(removeBadgeRequest.badgeId());
         accountService.save(account.get());
 
+        return ResponseEntity.ok().build();
+    }
+
+    @PutMapping("/email/{uuid}")
+    public ResponseEntity<Void> changeEmail(@PathVariable String uuid, @RequestBody ChangeEmailRequest request) {
+        Optional<Account> account = accountService.getById(uuid);
+        if (account.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        if (request.email() == null || !request.email().matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")
+                || request.currentPassword() == null
+                || !passwordEncoder.matches(request.currentPassword(), account.get().getPassword())) {
+            return ResponseEntity.badRequest().build();
+        }
+        Optional<Account> existing = accountService.getByEmail(request.email());
+        if (existing.isPresent() && !existing.get().getUuid().equals(uuid)) {
+            return ResponseEntity.status(409).build();
+        }
+        account.get().setEmail(request.email().trim().toLowerCase());
+        accountService.save(account.get());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/tfa/setup/{uuid}")
+    public ResponseEntity<TfaSetupResponse> setupTfa(@PathVariable String uuid, @RequestBody TfaSetupRequest request) {
+        Optional<Account> account = accountService.getById(uuid);
+        if (account.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        if (account.get().isTfaEnabled()) {
+            return ResponseEntity.status(409).build();
+        }
+        if (request.currentPassword() == null || !passwordEncoder.matches(request.currentPassword(), account.get().getPassword())) {
+            return ResponseEntity.badRequest().build();
+        }
+        String secret = totpService.createSecret();
+        account.get().setTfaSecret(secret);
+        accountService.save(account.get());
+        String issuer = URLEncoder.encode(serverType.getName(), StandardCharsets.UTF_8);
+        String label = URLEncoder.encode(serverType.getName() + ":" + account.get().getUsername(), StandardCharsets.UTF_8);
+        return ResponseEntity.ok(new TfaSetupResponse(secret, "otpauth://totp/" + label + "?secret=" + secret + "&issuer=" + issuer));
+    }
+
+    @PostMapping("/tfa/enable/{uuid}")
+    public ResponseEntity<Void> enableTfa(@PathVariable String uuid, @RequestBody TfaCodeRequest request) {
+        Optional<Account> account = accountService.getById(uuid);
+        if (account.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        if (request.currentPassword() == null
+                || !passwordEncoder.matches(request.currentPassword(), account.get().getPassword())
+                || !totpService.verify(account.get().getTfaSecret(), request.code())) {
+            return ResponseEntity.badRequest().build();
+        }
+        account.get().setTfaEnabled(true);
+        accountService.save(account.get());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/tfa/disable/{uuid}")
+    public ResponseEntity<Void> disableTfa(@PathVariable String uuid, @RequestBody TfaCodeRequest request) {
+        Optional<Account> account = accountService.getById(uuid);
+        if (account.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        if (request.currentPassword() == null
+                || !passwordEncoder.matches(request.currentPassword(), account.get().getPassword())
+                || !totpService.verify(account.get().getTfaSecret(), request.code())) {
+            return ResponseEntity.badRequest().build();
+        }
+        account.get().setTfaEnabled(false);
+        account.get().setTfaSecret(null);
+        accountService.save(account.get());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/tfa/verify/{uuid}")
+    public ResponseEntity<Void> verifyTfa(@PathVariable String uuid, @RequestBody TfaVerifyRequest request) {
+        Optional<Account> account = accountService.getById(uuid);
+        if (account.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        return totpService.verify(account.get().getTfaSecret(), request.code())
+                ? ResponseEntity.ok().build()
+                : ResponseEntity.badRequest().build();
+    }
+
+    @PutMapping("/banner/{uuid}")
+    public ResponseEntity<Void> selectBanner(@PathVariable String uuid, @RequestBody SelectBannerRequest request) {
+        Optional<Account> account = accountService.getById(uuid);
+        if (account.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        if (request.bannerId() != null && !profileBannerRepository.existsById(request.bannerId())) {
+            return ResponseEntity.badRequest().build();
+        }
+        account.get().setProfileBannerId(request.bannerId());
+        accountService.save(account.get());
         return ResponseEntity.ok().build();
     }
 }

@@ -33,6 +33,7 @@ dependencies {
     annotationProcessor("org.projectlombok:lombok")
     implementation("com.google.guava:guava:33.4.0-jre")
     implementation("com.google.code.gson:gson:2.11.0")
+    implementation("commons-codec:commons-codec:1.17.1")
     
     // Swagger UI dependencies
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.4.0")

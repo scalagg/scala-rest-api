@@ -1,6 +1,7 @@
 package gg.scala.restapi.account;
 
 import com.mongodb.lang.Nullable;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
@@ -23,4 +24,8 @@ public class Account {
     private org.bson.Document settings;
     private List<String> badges;
     private String username;
+    @JsonIgnore
+    private String tfaSecret;
+    private boolean tfaEnabled;
+    private String profileBannerId;
 }
