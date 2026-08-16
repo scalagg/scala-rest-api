@@ -15,9 +15,9 @@ public enum ServerType {
             "PvPLeague",
             "https://pvpleague.club"
     ),
-    POTPVP(
-            "PotPvP",
-            "https://potpvp.com"
+    ALPHA(
+            "Alpha",
+            "https://alpha.rip"
     );
 
 
